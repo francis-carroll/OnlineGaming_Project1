@@ -17,6 +17,7 @@ public:
 private:
 	void setupBasePlayer();
 	void movement(Time t_deltaTime);
+	void screenWrap();
 protected:
 	const float SPEED = 20.0f;
 	const float RATE_OF_FRICTION = 0.95f;

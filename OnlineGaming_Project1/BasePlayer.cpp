@@ -25,6 +25,7 @@ BasePlayer::~BasePlayer()
 void BasePlayer::update(Time t_deltaTime)
 {
 	movement(t_deltaTime);
+	screenWrap();
 }
 
 void BasePlayer::render(RenderWindow& t_window)
@@ -71,4 +72,28 @@ void BasePlayer::movement(Time t_deltaTime)
 
 	//applies friction to player movement
 	m_velocity *= RATE_OF_FRICTION;
+}
+
+void BasePlayer::screenWrap()
+{
+	//right side
+	if (m_position.x - m_radius > 800.0f)
+	{
+		m_position = Vector2f(0.0f, m_position.y);
+	}
+	//left side
+	if (m_position.x + m_radius < 0)
+	{
+		m_position = Vector2f(800.0f, m_position.y);
+	}
+	//top
+	if (m_position.y + m_radius < 0)
+	{
+		m_position = Vector2f(m_position.x, 600.0f);
+	}
+	//bottom
+	if (m_position.y - m_radius > 600.0f)
+	{
+		m_position = Vector2f(m_position.x, 0.0f);
+	}
 }
