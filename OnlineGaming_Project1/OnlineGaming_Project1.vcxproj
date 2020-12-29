@@ -143,9 +143,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="BasePlayer.h" />
     <ClInclude Include="Game.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BasePlayer.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>

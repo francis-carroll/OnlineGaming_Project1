@@ -13,10 +13,19 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\Entities">
+      <UniqueIdentifier>{a101be06-3835-4aa4-916a-88e8f5145705}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Entities">
+      <UniqueIdentifier>{e7456999-b375-4cd6-9da1-2b6fe5137172}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Game.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BasePlayer.h">
+      <Filter>Header Files\Entities</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -25,6 +34,9 @@
     </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BasePlayer.cpp">
+      <Filter>Source Files\Entities</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
