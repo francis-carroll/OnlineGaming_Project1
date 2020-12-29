@@ -1,7 +1,8 @@
 #include "Game.h"
 
 Game::Game() :
-	m_window(sf::VideoMode(800, 600, 32), "Project 1", sf::Style::Default)
+	m_window(sf::VideoMode(800, 600, 32), "Project 1", sf::Style::Default),
+	p(BasePlayer(Vector2f(100.0f,100.0f), 10.0f))
 {
 	setup();
 }
@@ -32,11 +33,14 @@ void Game::run()
 
 void Game::update(Time t_deltaTime)
 {
+	p.update(t_deltaTime);
 }
 
 void Game::render()
 {
 	m_window.clear();
+
+	p.render(m_window);
 
 	m_window.display();
 }

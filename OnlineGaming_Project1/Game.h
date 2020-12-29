@@ -2,6 +2,8 @@
 
 #include <SFML/Graphics.hpp>
 
+#include "BasePlayer.h"
+
 using namespace std;
 using namespace sf;
 
@@ -18,5 +20,7 @@ private:
 	void setup();
 
 	sf::RenderWindow m_window;
+
+	BasePlayer p;
 };
 

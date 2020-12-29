@@ -3,7 +3,8 @@
 BasePlayer::BasePlayer() : 
 	m_radius(10.0f),
 	m_position(Vector2f(0.0f,0.0f)),
-	m_velocity(Vector2f(0.0f, 0.0f))
+	m_velocity(Vector2f(0.0f, 0.0f)),
+	m_circleShape(make_shared<CircleShape>())
 {
 	setupBasePlayer();
 }
@@ -11,7 +12,8 @@ BasePlayer::BasePlayer() :
 BasePlayer::BasePlayer(Vector2f t_position, float t_radius) :
 	m_radius(t_radius),
 	m_position(t_position),
-	m_velocity(Vector2f(0.0f, 0.0f))
+	m_velocity(Vector2f(0.0f, 0.0f)),
+	m_circleShape(make_shared<CircleShape>())
 {
 	setupBasePlayer();
 }
@@ -20,8 +22,9 @@ BasePlayer::~BasePlayer()
 {
 }
 
-void BasePlayer::update()
+void BasePlayer::update(Time t_deltaTime)
 {
+	movement(t_deltaTime);
 }
 
 void BasePlayer::render(RenderWindow& t_window)
@@ -35,4 +38,37 @@ void BasePlayer::setupBasePlayer()
 	m_circleShape->setPosition(m_position);
 	m_circleShape->setFillColor(Color::Red);
 	m_circleShape->setOrigin(Vector2f(m_radius, m_radius));
+}
+
+void BasePlayer::movement(Time t_deltaTime)
+{
+	//Movement in all directions
+	if (Keyboard::isKeyPressed(sf::Keyboard::A) ||
+		Keyboard::isKeyPressed(sf::Keyboard::Left))
+	{
+		m_velocity += Vector2f(-SPEED, 0.0f);
+	}
+	if (Keyboard::isKeyPressed(sf::Keyboard::S) ||
+		Keyboard::isKeyPressed(sf::Keyboard::Down))
+	{
+		m_velocity += Vector2f(0.0f, SPEED);
+	}
+	if (Keyboard::isKeyPressed(sf::Keyboard::D) ||
+		Keyboard::isKeyPressed(sf::Keyboard::Right))
+	{
+		m_velocity += Vector2f(SPEED, 0.0f);
+	}
+	if (Keyboard::isKeyPressed(sf::Keyboard::W) ||
+		Keyboard::isKeyPressed(sf::Keyboard::Up))
+	{
+		m_velocity += Vector2f(0.0f, -SPEED);
+	}
+
+	m_position += t_deltaTime.asSeconds() * m_velocity;
+
+	//sets the circles position
+	m_circleShape->setPosition(m_position);
+
+	//applies friction to player movement
+	m_velocity *= RATE_OF_FRICTION;
 }
