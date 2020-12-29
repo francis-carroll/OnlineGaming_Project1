@@ -3,6 +3,7 @@
 #include <SFML/Graphics.hpp>
 
 #include "BasePlayer.h"
+#include "AuthPlayer.h"
 
 using namespace std;
 using namespace sf;
@@ -21,6 +22,10 @@ private:
 
 	sf::RenderWindow m_window;
 
-	BasePlayer p;
+	shared_ptr<AuthPlayer> m_host;
+
+	vector<shared_ptr<BasePlayer>> m_players;
+
+	int m_playerCount;
 };
 

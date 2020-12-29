@@ -143,10 +143,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AuthPlayer.h" />
     <ClInclude Include="BasePlayer.h" />
     <ClInclude Include="Game.h" />
+    <ClInclude Include="Globals.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AuthPlayer.cpp" />
     <ClCompile Include="BasePlayer.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="main.cpp" />

@@ -1,7 +1,9 @@
 #include "BasePlayer.h"
 
-BasePlayer::BasePlayer() : 
+BasePlayer::BasePlayer(int t_id) :
 	m_radius(10.0f),
+	m_activePlayer(false),
+	m_id(t_id),
 	m_position(Vector2f(0.0f,0.0f)),
 	m_velocity(Vector2f(0.0f, 0.0f)),
 	m_circleShape(make_shared<CircleShape>())
@@ -9,9 +11,11 @@ BasePlayer::BasePlayer() :
 	setupBasePlayer();
 }
 
-BasePlayer::BasePlayer(Vector2f t_position, float t_radius) :
+BasePlayer::BasePlayer(int t_id, Vector2f t_position, float t_radius) :
 	m_radius(t_radius),
 	m_position(t_position),
+	m_id(t_id),
+	m_activePlayer(false),
 	m_velocity(Vector2f(0.0f, 0.0f)),
 	m_circleShape(make_shared<CircleShape>())
 {
@@ -24,13 +28,31 @@ BasePlayer::~BasePlayer()
 
 void BasePlayer::update(Time t_deltaTime)
 {
-	movement(t_deltaTime);
-	screenWrap();
+	if (m_activePlayer)
+	{
+		movement(t_deltaTime);
+		screenWrap();
+	}
 }
 
 void BasePlayer::render(RenderWindow& t_window)
 {
 	t_window.draw(*m_circleShape);
+}
+
+void BasePlayer::setActivePlayer(bool t_bool)
+{
+	m_activePlayer = t_bool;
+}
+
+Vector2f BasePlayer::getPosition()
+{
+	return m_position;
+}
+
+int BasePlayer::getID()
+{
+	return m_id;
 }
 
 void BasePlayer::setupBasePlayer()
