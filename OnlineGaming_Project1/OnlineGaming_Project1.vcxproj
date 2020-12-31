@@ -145,12 +145,14 @@
   <ItemGroup>
     <ClInclude Include="AuthPlayer.h" />
     <ClInclude Include="BasePlayer.h" />
+    <ClInclude Include="Client.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="Globals.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AuthPlayer.cpp" />
     <ClCompile Include="BasePlayer.cpp" />
+    <ClCompile Include="Client.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>

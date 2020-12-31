@@ -8,23 +8,19 @@
 #include <WinSock2.h>
 #include <Ws2tcpip.h>
 #include <iostream>
-#include "WinSocket.h"
+#include <string>
+
+#include "Server.h"
 
 using namespace std;
 
 int main()
 {
-    WinSocket m_socket;
-    m_socket.start();
+    Server server(1111);
 
-    SOCKET m_newConnection = m_socket.listenForConnection();
-    if (m_newConnection == NULL)
+    for (int i = 0; i < 100; i++)
     {
-        cout << "Failed to connect to client" << endl;
-    }
-    else {
-        char MOTD[256] = "WELCOME!!";
-        send(m_newConnection, MOTD, sizeof(MOTD), NULL);
+        server.listenForNewConnections();
     }
 
     system("pause");

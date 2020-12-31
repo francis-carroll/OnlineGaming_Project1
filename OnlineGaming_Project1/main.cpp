@@ -17,51 +17,34 @@
 #pragma comment(lib,"sfml-network.lib")
 #endif
 
-#pragma comment(lib,"ws2_32.lib")
-
-#include <iostream>
-#include <SFML/Graphics.hpp>
-#include <WinSock2.h>
-#include <Ws2tcpip.h>
-
-#include "Game.h"
+#include "Client.h"
 
 int main()
 {
     srand((unsigned)time(nullptr));
 
-    WSAData m_wsaData;
-    WORD DllVersion = MAKEWORD(2, 1);
-    if (WSAStartup(DllVersion, &m_wsaData) != 0)
+    Client client("127.0.0.1", 1111);
+
+    if (!client.connectSocket())
     {
-        MessageBoxA(NULL, "Winsock startup failed", "Error", MB_OK | MB_ICONERROR);
-        exit(1);
+        cout << "Failed to connect to server" << endl;
+        system("pause");
+        return 1;
     }
 
-    SOCKADDR_IN m_address;
-    int m_addressLength = sizeof(m_address);
-    //sets the address
-    m_address.sin_addr.s_addr = inet_addr("127.0.0.1");
-    //sets the port
-    m_address.sin_port = htons(1111);
-    //set the fam to IPV4
-    m_address.sin_family = AF_INET;
-
-    SOCKET m_connection = socket(AF_INET, SOCK_STREAM, NULL);
-    if (connect(m_connection, (SOCKADDR*)&m_address, m_addressLength) != 0)
-    {
-        MessageBoxA(NULL, "Failed to connect", "Error", MB_OK | MB_ICONERROR);
-        return 0;
-    }
-    cout << "Connected" << endl;
-
-   /* Game m_game;
+    /*Game m_game;
 
     m_game.run();*/
 
-    char MOTD[256];
-    recv(m_connection, MOTD, sizeof(MOTD), NULL);
-    cout << "MOTD: " << MOTD << endl;
+    string buffer;
+    while (true)
+    {
+        getline(cin, buffer);
+
+        if (!client.SendString(Packet::P_ChatMessage, buffer)) break;
+
+        Sleep(10);
+    }
 
     system("pause");
     return 0;
