@@ -46,19 +46,43 @@ bool Client::closeConnection()
     return true;
 }
 
-bool Client::processPacket(Packet t_packetType)
+bool Client::processPacket(PacketType t_packetType)
 {
     switch (t_packetType)
     {
-    case Packet::P_ChatMessage:
+    case PacketType::ChatMessage:
     {
         string message;
         if (!getString(message)) return false;
         cout << message << endl;
         break;
     }
-    case Packet::P_DataPacket:
+    case PacketType::FileTransferByteBuffer:
+    {
+        int32_t bufferSize;
+        if (!getInt32_t(bufferSize)) return false;
+
+        if (!recvAll(m_file.buffer, bufferSize)) return false;
+
+        m_file.outFileStream.write(m_file.buffer, bufferSize);
+        m_file.bytesWritten += bufferSize;
+
+        cout << "Recieved byte buffer for file transfer of size: " << bufferSize << endl;
+
+        sendPacketType(PacketType::FileTransferRequestNextBuffer);
+
         break;
+    }
+    case PacketType::FileTransfer_EndOfFile:
+    {
+        cout << "File transfer completed. File recieved." << endl;
+        cout << "File Name: " << m_file.fileName << endl;
+        cout << "File Size(bytes): " << m_file.bytesWritten << std::endl;
+
+        m_file.bytesWritten = 0;
+        m_file.outFileStream.close();
+        break;
+    }
     default:
         cout << "Unreconised Packet Type" << endl;
         break;
@@ -68,7 +92,7 @@ bool Client::processPacket(Packet t_packetType)
 
 void Client::clientThread()
 {
-    Packet packetType;
+    PacketType packetType;
     while (true)
     {
         if (!clientPtr->getPacketType(packetType)) break;
@@ -99,9 +123,10 @@ bool Client::sendAll(char* t_data, int t_totalBytes)
     return true;
 }
 
-bool Client::sendInt(int t_int)
+bool Client::sendInt32_t(int32_t t_int)
 {
-    if (!sendAll((char*)&t_int, sizeof(int))) return false;
+    t_int = htonl(t_int);
+    if (!sendAll((char*)&t_int, sizeof(int32_t))) return false;
 
     return true;
 }
@@ -118,43 +143,67 @@ bool Client::recvAll(char* t_data, int t_totalBytes)
     return true;
 }
 
-bool Client::getInt(int& t_int)
+bool Client::getInt32_t(int32_t& t_int)
 {
-    if (!recvAll((char*)&t_int, sizeof(int))) return false;
+    if (!recvAll((char*)&t_int, sizeof(int32_t))) return false;
+    t_int = ntohl(t_int);
     return true;
 }
 
-bool Client::sendPacketType(Packet t_packetType)
+bool Client::sendPacketType(PacketType t_packetType)
 {
-    if (!sendAll((char*)&t_packetType, sizeof(Packet))) return false;
+    if (!sendInt32_t((int32_t)t_packetType)) return false;
     return true;
 }
 
-bool Client::getPacketType(Packet& t_packetType)
+bool Client::getPacketType(PacketType& t_packetType)
 {
-    if (!recvAll((char*)&t_packetType, sizeof(Packet))) return false;
+    int packetType;
+    if (!getInt32_t(packetType)) return false;
+    t_packetType = (PacketType)packetType;
     return true;
 }
 
-bool Client::SendString(Packet t_packetType, string t_string)
+bool Client::SendString(PacketType t_packetType, string t_string, bool t_includePacketType)
 {
-    //send the packet
-    if (!sendPacketType(t_packetType)) return false;
+    if (t_includePacketType)
+    {
+        //send the packet
+        if (!sendPacketType(t_packetType)) return false;
+    }
 
     //send the message length
-    int bufferlen = t_string.size();
-    if (!sendInt(bufferlen)) return false;
+    int32_t bufferlen = t_string.size();
+    if (!sendInt32_t(bufferlen)) return false;
 
     //send the string
     if (!sendAll((char*)t_string.c_str() , bufferlen)) return false;
     return true;
 }
 
+bool Client::requestFile(string t_fileName)
+{
+    m_file.outFileStream.open(t_fileName);
+    m_file.fileName = t_fileName;
+    m_file.bytesWritten = 0;
+    if (!m_file.outFileStream.is_open())
+    {
+        cout << "ERROR: Function(Client::RequestFile" << endl;
+        return false;
+    }
+
+    cout << "Requesting file from server: " << t_fileName << endl;
+
+    if (!sendPacketType(PacketType::FileTransferRequestFile)) return false;
+    if (!SendString(PacketType::FileTransferRequestFile, t_fileName, false));
+    return true;
+}
+
 bool Client::getString(string& t_string)
 {
-    int bufferlen;
+    int32_t bufferlen;
 
-    if (!getInt(bufferlen)) return false;
+    if (!getInt32_t(bufferlen)) return false;
 
     char* buffer = new char[bufferlen + 1];
     buffer[bufferlen] = '\0';

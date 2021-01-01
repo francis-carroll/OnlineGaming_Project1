@@ -19,6 +19,12 @@
     <Filter Include="Header Files\Entities">
       <UniqueIdentifier>{e7456999-b375-4cd6-9da1-2b6fe5137172}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Networking">
+      <UniqueIdentifier>{4738c7e7-c2ce-4734-b92a-b8d5b78e60cc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Networking">
+      <UniqueIdentifier>{604e91e0-f2a3-4ea6-a8be-f37a60500758}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Game.h">
@@ -34,7 +40,13 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Client.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="FileTransferData.h">
+      <Filter>Header Files\Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketType.h">
+      <Filter>Header Files\Networking</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -51,7 +63,7 @@
       <Filter>Source Files\Entities</Filter>
     </ClCompile>
     <ClCompile Include="Client.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Networking</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

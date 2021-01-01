@@ -10,13 +10,10 @@
 #include <WinSock2.h>
 #include <Ws2tcpip.h>
 
-using namespace std;
+#include "FileTransferData.h"
+#include "PacketType.h"
 
-enum class Packet
-{
-    P_ChatMessage,
-    P_DataPacket
-};
+using namespace std;
 
 class Client
 {
@@ -24,25 +21,29 @@ public:
     Client(string t_ip, int t_port);
     bool connectSocket();
     bool closeConnection();
-    bool SendString(Packet t_packetType, string t_string);
+    bool SendString(PacketType t_packetType, string t_string, bool t_includePacketType = true);
+
+    bool requestFile(string t_fileName);
 private:
-    bool processPacket(Packet t_packetType);
+    bool processPacket(PacketType t_packetType);
     static void clientThread();
     
     //sending
     bool sendAll(char* t_data, int t_totalBytes);
-    bool sendInt(int t_int);
-    bool sendPacketType(Packet t_packetType);
+    bool sendInt32_t(int32_t t_int);
+    bool sendPacketType(PacketType t_packetType);
 
     //getting
     bool recvAll(char* t_data, int t_totalBytes);
-    bool getInt(int& t_int);
-    bool getPacketType(Packet& t_packetType);
+    bool getInt32_t(int32_t& t_int);
+    bool getPacketType(PacketType& t_packetType);
     bool getString(string& t_string);
 
     SOCKET m_connection;
     SOCKADDR_IN m_address;
     int m_addressLenght = sizeof(m_address);
+
+    FileTransferData m_file;
 };
 
 static Client* clientPtr;

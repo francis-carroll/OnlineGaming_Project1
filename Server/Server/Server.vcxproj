@@ -140,9 +140,18 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Packet.cpp" />
+    <ClCompile Include="PacketManager.cpp" />
+    <ClCompile Include="PacketStructs.cpp" />
     <ClCompile Include="Server.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Connection.h" />
+    <ClInclude Include="FileTransferData.h" />
+    <ClInclude Include="Packet.h" />
+    <ClInclude Include="PacketManager.h" />
+    <ClInclude Include="PacketStructs.h" />
+    <ClInclude Include="PacketType.h" />
     <ClInclude Include="Server.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

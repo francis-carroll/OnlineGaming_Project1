@@ -32,6 +32,8 @@ int main()
         return 1;
     }
 
+    //client.requestFile("trump2.jpg");
+
     /*Game m_game;
 
     m_game.run();*/
@@ -41,7 +43,7 @@ int main()
     {
         getline(cin, buffer);
 
-        if (!client.SendString(Packet::P_ChatMessage, buffer)) break;
+        if (!client.SendString(PacketType::ChatMessage, buffer)) break;
 
         Sleep(10);
     }

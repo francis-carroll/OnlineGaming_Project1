@@ -44,29 +44,48 @@ Server::Server(int t_port, bool t_broadcastPublically)
 	}
 
 	serverPtr = this;
+
+	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)packetSenderThread, NULL, NULL, NULL);
 }
 
 bool Server::listenForNewConnections()
 {
-	SOCKET newConnection = accept(m_sListen, (SOCKADDR*)&m_address, &m_addressLenght);
-	if (newConnection == 0)
+	SOCKET newConnectionSocket = accept(m_sListen, (SOCKADDR*)&m_address, &m_addressLenght);
+	int newConnectionID = m_connections.size();
+	if (newConnectionSocket == 0)
 	{
 		cout << "Failed to accept the clients connection" << endl;
 		return false;
 	}
 	else {
-		g_connections.push_back(make_shared<SOCKET>(newConnection));
-		cout << "Client has been sucessfully conected" << endl;
+		lock_guard<mutex> lock(m_connectionManagerMutex);
 
-		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandlerThread, (LPVOID)(g_connections.size() - 1), NULL, NULL);
+		if (m_unusedConnections > 0)
+		{
+			for (shared_ptr<Connection> con : m_connections)
+			{
+				if (!con->activeConnection)
+				{
+					con->socket = newConnectionSocket;
+					con->activeConnection = true;
+					newConnectionID = con->id;
+					m_unusedConnections--;
+					break;
+				}
+			}
+		}
+		else {
+			addConnection(newConnectionSocket);
+			cout << "Client has been sucessfully conected" << endl;
+		}
 
-		sendString(g_connections.size() - 1, Packet::P_ChatMessage, "Welcome!! This si the message of the day");
+		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)clientHandlerThread, (LPVOID)(newConnectionID), NULL, NULL);
 	}
 }
 
 bool Server::closeConnection(int t_id)
 {
-	if (closesocket(*g_connections.at(t_id)) == SOCKET_ERROR)
+	if (closesocket(m_connections[t_id]->socket) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() == WSAENOTSOCK) return true;
 
@@ -78,35 +97,63 @@ bool Server::closeConnection(int t_id)
 	return true;
 }
 
-bool Server::ProcessPacket(int t_id, Packet t_packetType)
+void Server::addConnection(SOCKET& t_socket)
+{
+	m_connections.push_back(make_shared<Connection>(m_connections.size(), t_socket));
+}
+
+bool Server::processPacket(int t_id, PacketType t_packetType)
 {
 	switch (t_packetType)
 	{
-	case Packet::P_ChatMessage:
+	case PacketType::ChatMessage:
 	{
 		string message;
 		if (!getString(t_id, message)) return false;
 
-		if (g_connections.size() > 1)
+
+		for (shared_ptr<Connection> con : m_connections)
 		{
-			int index = 0;
-			for (shared_ptr<SOCKET> con : g_connections)
+			if (!con->activeConnection) continue; //if the connection is not active, continue
+
+			if (m_connections[t_id]->socket != con->socket)
 			{
-				if (g_connections.at(t_id) != con)
-				{
-					if (!sendString(index, Packet::P_ChatMessage, message))
-					{
-						cout << "Failed to send message from client id: " << t_id << " to client id: " << index << endl;
-					}
-				}
-				index++;
+				sendString(con->id, message);
 			}
-			cout << "Chat message has been processed from client id: " << t_id << endl;
 		}
+
+		cout << "Chat message has been processed from client id: " << t_id << endl;
 		break;
 	}
-	case Packet::P_DataPacket:
+	case PacketType::FileTransferRequestFile:
+	{
+		string fileName;
+		if (!getString(t_id, fileName)) return false;
+
+		m_connections[t_id]->file.inFileStream.open(fileName, ios::binary | ios::ate);
+		if (!m_connections[t_id]->file.inFileStream.is_open())
+		{
+			cout << "Client id: " << t_id << " requested file " << fileName << ", but that file does not exist";
+			string errMsg = "Requested file " + fileName + " does not exist or was not found.";
+			sendString(t_id, errMsg);
+			return true;
+		}
+
+		m_connections[t_id]->file.fileName = fileName;
+		m_connections[t_id]->file.fileSize = m_connections[t_id]->file.inFileStream.tellg();
+		m_connections[t_id]->file.inFileStream.seekg(0);
+		m_connections[t_id]->file.fileOffset = 0;
+
+		if (!handlesSentFile(t_id)) return false;
+
 		break;
+	}
+	case PacketType::FileTransferRequestNextBuffer:
+	{
+		if (!handlesSentFile(t_id)) return false;
+		return true;
+		break;
+	}
 	default:
 		cout << "Unreconised Packet Type" << endl;
 		break;
@@ -114,23 +161,113 @@ bool Server::ProcessPacket(int t_id, Packet t_packetType)
 	return true;
 }
 
-void Server::ClientHandlerThread(int t_id)
+void Server::clientHandlerThread(int t_id)
 {
-	Packet packetType;
+	PacketType packetType;
 	while (true)
 	{
 		if (!serverPtr->getPacketType(t_id, packetType)) break;
 
-		if (!serverPtr->ProcessPacket(t_id, packetType)) break;
+		if (!serverPtr->processPacket(t_id, packetType)) break;
 	}
-	cout << "Lost connection to client id: " << t_id << endl;
+
+	serverPtr->disconnectClient(t_id);
+}
+
+void Server::packetSenderThread()
+{
+	while (true)
+	{
+		for (shared_ptr<Connection> con : serverPtr->m_connections)
+		{
+			if (con->pm.hasPendingPackets())
+			{
+				Packet p = con->pm.retrieve();
+				if (!serverPtr->sendAll(con->id, p.getBuffer(), p.getSize()))
+				{
+					cout << "Failed to send packet to ID: " << con->id << endl;
+				}
+				delete p.getBuffer(); //clean up packet p
+			}
+		}
+		Sleep(5);
+	}
+}
+
+bool Server::handlesSentFile(int t_id)
+{
+	if (m_connections[t_id]->file.fileOffset >= m_connections[t_id]->file.fileSize) return true;
+
+	if (!sendPacketType(t_id, PacketType::FileTransferByteBuffer)) return false;
+
+	m_connections[t_id]->file.remainingBytes = m_connections[t_id]->file.fileSize - m_connections[t_id]->file.fileOffset;
+
+	//file is finished sending
+	if (m_connections[t_id]->file.remainingBytes > m_connections[t_id]->file.bufferSize)
+	{
+		m_connections[t_id]->file.inFileStream.read(m_connections[t_id]->file.buffer, m_connections[t_id]->file.bufferSize);
+
+		if (!sendInt32_t(t_id, m_connections[t_id]->file.bufferSize)) return false;
+
+		if(!sendAll(t_id, m_connections[t_id]->file.buffer, m_connections[t_id]->file.bufferSize)) return false;
+
+		m_connections[t_id]->file.fileOffset += m_connections[t_id]->file.bufferSize;
+	}
+	else 
+	{
+		m_connections[t_id]->file.inFileStream.read(m_connections[t_id]->file.buffer, m_connections[t_id]->file.remainingBytes);
+
+		if (!sendInt32_t(t_id, m_connections[t_id]->file.remainingBytes)) return false;
+
+		if (!sendAll(t_id, m_connections[t_id]->file.buffer, m_connections[t_id]->file.remainingBytes)) return false;
+
+		m_connections[t_id]->file.fileOffset += m_connections[t_id]->file.remainingBytes;
+	}
+
+	if (m_connections[t_id]->file.fileOffset == m_connections[t_id]->file.fileSize)
+	{
+		if (!sendPacketType(t_id, PacketType::FileTransfer_EndOfFile)) return false;
+
+		cout << "File Sent: " << m_connections[t_id]->file.fileName << endl;
+		cout << "File size(bytes): " << m_connections[t_id]->file.fileSize << endl;
+	}
+
+	return true;
+}
+
+void Server::disconnectClient(int t_id)
+{
+	lock_guard<mutex> lock(m_connectionManagerMutex);
+
+	//if it is already disconnected
+	if (!m_connections[t_id]->activeConnection) return;
+
+
+	m_connections[t_id]->pm.clearPackets();
+	m_connections[t_id]->activeConnection = false;
 
 	if (serverPtr->closeConnection(t_id))
 	{
-		cout << "Socket to the server has been closed." << endl;
+		cout << "Socket to the server for client id: " << t_id  << " has been closed." << endl;
 	}
 	else {
 		cout << "Socket to the server cannot be closed." << endl;
+	}
+
+	if (t_id == (m_connections.size() - 1))
+	{
+		m_connections.pop_back();
+
+		for (int i = m_connections.size() - 1; i >= 0 && m_connections.size() > 1; i--)
+		{
+			if (m_connections[i]->activeConnection) break;
+			m_connections.pop_back();
+			m_unusedConnections--;
+		}
+	}
+	else
+	{
+		m_unusedConnections++;
 	}
 }
 
@@ -139,37 +276,30 @@ bool Server::sendAll(int t_id, char* t_data, int t_totalBytes)
 	int bytesSent = 0;
 	while (bytesSent < t_totalBytes)
 	{
-		int returnCheck = send(*g_connections.at(t_id), t_data + bytesSent, t_totalBytes - bytesSent, NULL);
+		int returnCheck = send(m_connections.at(t_id)->socket, t_data + bytesSent, t_totalBytes - bytesSent, NULL);
 		if (returnCheck == SOCKET_ERROR) return false;
 		bytesSent += returnCheck;
 	}
 	return true;
 }
 
-bool Server::sendInt(int t_id, int t_int)
+bool Server::sendInt32_t(int t_id, int32_t t_int)
 {
-	if (!sendAll(t_id, (char*)&t_int, sizeof(int))) return false;
+	t_int = htonl(t_int);
+	if (!sendAll(t_id, (char*)&t_int, sizeof(int32_t))) return false;
 	return true;
 }
 
-bool Server::sendPacketType(int t_id, Packet t_packetType)
+bool Server::sendPacketType(int t_id, PacketType t_packetType)
 {
-	if (!sendAll(t_id, (char*)&t_packetType, sizeof(Packet))) return false;
+	if (!sendInt32_t(t_id, (int32_t)t_packetType)) return false;
 	return true;
 }
 
-bool Server::sendString(int t_id, Packet t_packetType, string t_string)
+void Server::sendString(int t_id, string t_string)
 {
-	//send the packet
-	if (!sendPacketType(t_id, t_packetType)) return false;
-
-	//send the message length
-	int bufferlen = t_string.size();
-	if (!sendInt(t_id, bufferlen)) return false;
-
-	//send the string
-	if (!sendAll(t_id, (char*)t_string.c_str(), bufferlen)) return false;
-	return true;
+	PS::ChatMessage message(t_string);
+	m_connections[t_id]->pm.append(message.toPacket());
 }
 
 bool Server::recvAll(int t_id, char* t_data, int t_totalBytes)
@@ -177,29 +307,32 @@ bool Server::recvAll(int t_id, char* t_data, int t_totalBytes)
 	int bytesRecieved = 0;
 	while (bytesRecieved < t_totalBytes)
 	{
-		int returnCheck = recv(*g_connections.at(t_id), t_data + bytesRecieved, t_totalBytes - bytesRecieved, NULL);
+		int returnCheck = recv(m_connections[t_id]->socket, t_data + bytesRecieved, t_totalBytes - bytesRecieved, NULL);
 		if (returnCheck == SOCKET_ERROR) return false;
 		bytesRecieved += returnCheck;
 	}
 	return true;
 }
 
-bool Server::getInt(int t_id, int& t_int)
+bool Server::getInt32_t(int t_id, int32_t& t_int)
 {
-	if (!recvAll(t_id, (char*)&t_int, sizeof(int))) return false;
+	if (!recvAll(t_id, (char*)&t_int, sizeof(int32_t))) return false;
+	t_int = ntohl(t_int);
 	return true;
 }
 
-bool Server::getPacketType(int t_id, Packet& t_packetType)
+bool Server::getPacketType(int t_id, PacketType& t_packetType)
 {
-	if (!recvAll(t_id, (char*)&t_packetType, sizeof(Packet))) return false;
+	int packetType;
+	if (!getInt32_t(t_id, packetType)) return false;
+	t_packetType = (PacketType)packetType;
 	return true;
 }
 
 bool Server::getString(int t_id, string& t_string)
 {
-	int bufferlen;
-	if (!getInt(t_id, bufferlen)) return false;
+	int32_t bufferlen;
+	if (!getInt32_t(t_id, bufferlen)) return false;
 
 	char* buffer = new char[bufferlen + 1];
 	buffer[bufferlen] = '\0';
