@@ -1,6 +1,7 @@
 ///@author Francis Carroll
 ///@date 29/12/20
 
+#define NOMINMAX
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #pragma comment(lib,"ws2_32.lib")

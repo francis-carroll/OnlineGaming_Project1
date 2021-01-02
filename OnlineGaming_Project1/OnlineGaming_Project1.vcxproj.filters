@@ -42,10 +42,22 @@
     <ClInclude Include="Client.h">
       <Filter>Header Files\Networking</Filter>
     </ClInclude>
-    <ClInclude Include="FileTransferData.h">
+    <ClInclude Include="PacketType.h">
       <Filter>Header Files\Networking</Filter>
     </ClInclude>
-    <ClInclude Include="PacketType.h">
+    <ClInclude Include="GameUpdate.h">
+      <Filter>Header Files\Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketStructs.h">
+      <Filter>Header Files\Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="Packet.h">
+      <Filter>Header Files\Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="Connection.h">
+      <Filter>Header Files\Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketManager.h">
       <Filter>Header Files\Networking</Filter>
     </ClInclude>
   </ItemGroup>
@@ -63,6 +75,15 @@
       <Filter>Source Files\Entities</Filter>
     </ClCompile>
     <ClCompile Include="Client.cpp">
+      <Filter>Source Files\Networking</Filter>
+    </ClCompile>
+    <ClCompile Include="PacketStructs.cpp">
+      <Filter>Source Files\Networking</Filter>
+    </ClCompile>
+    <ClCompile Include="Packet.cpp">
+      <Filter>Source Files\Networking</Filter>
+    </ClCompile>
+    <ClCompile Include="PacketManager.cpp">
       <Filter>Source Files\Networking</Filter>
     </ClCompile>
   </ItemGroup>

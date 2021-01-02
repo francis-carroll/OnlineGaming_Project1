@@ -18,6 +18,7 @@
 #endif
 
 #include "Client.h"
+#include "GameUpdate.h"
 
 int main()
 {
@@ -32,7 +33,12 @@ int main()
         return 1;
     }
 
-    //client.requestFile("trump2.jpg");
+    UpdateInfo temp;
+    temp.color = Color::Blue;
+    temp.pos = Vector2f(0.2f, 4.0f);
+    temp.state = State::NO;
+
+    client.sendUpdateInfo(temp);
 
     /*Game m_game;
 
@@ -43,7 +49,7 @@ int main()
     {
         getline(cin, buffer);
 
-        if (!client.SendString(PacketType::ChatMessage, buffer)) break;
+        client.sendString(buffer);
 
         Sleep(10);
     }

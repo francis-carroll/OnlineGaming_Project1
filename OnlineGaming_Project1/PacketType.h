@@ -2,6 +2,7 @@
 
 enum class PacketType
 {
+	Update,
 	ChatMessage,
 	FileTransferRequestFile,
 	FileTransfer_EndOfFile,

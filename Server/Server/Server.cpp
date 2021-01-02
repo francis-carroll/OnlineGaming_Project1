@@ -1,95 +1,94 @@
 #include "Server.h"
 
-Server::Server(int t_port, bool t_broadcastPublically)
+Server::Server(int t_port, bool t_loopBacktoLocalHost)
 {
-	WSAData m_wsaData;
+	WSAData wsaData;
 	WORD DllVersion = MAKEWORD(2, 1);
-	if (WSAStartup(DllVersion, &m_wsaData) != 0)
+
+	if (WSAStartup(DllVersion, &wsaData) != 0)
 	{
-		MessageBoxA(NULL, "Winsock startup failed", "Error", MB_OK | MB_ICONERROR);
-		exit(0);
+		MessageBoxA(0, "WinSock startup failed", "Error", MB_OK | MB_ICONERROR);
+		exit(1);
 	}
 
-	//public broadcasting
-	if (t_broadcastPublically){
-		m_address.sin_addr.s_addr = htonl(INADDR_ANY);
-	}
-	//local broadcasting
-	else {
-		m_address.sin_addr.s_addr = inet_addr("127.0.0.1");
-	}
+	if (t_loopBacktoLocalHost)
+		inet_pton(AF_INET, "127.0.0.1", &m_address.sin_addr.s_addr);
+	else
+		m_address.sin_addr.s_addr = htonl(INADDR_ANY); //loopback to any addr so others can connect
 
-	//sets the port
-	m_address.sin_port = htons(t_port);
-	//set the fam to IPV4
+	m_address.sin_port = htons(t_port); //Port
 	m_address.sin_family = AF_INET;
 
-	//create a socket
-	m_sListen = socket(AF_INET, SOCK_STREAM, NULL);
+	m_sListen = socket(AF_INET, SOCK_STREAM, 0); 
 
-	//binds the address to the socket
-	if (bind(m_sListen, (SOCKADDR*)&m_address, m_addressLenght) == SOCKET_ERROR)
+	if (bind(m_sListen, (SOCKADDR*)&m_address, sizeof(m_address)) == SOCKET_ERROR)
 	{
-		string errorMsg = "Failed to bind the address to the socket. Winsock error " + to_string(WSAGetLastError());
-		MessageBoxA(NULL, errorMsg.c_str(), "Error", MB_OK | MB_ICONERROR);
+		std::string ErrorMsg = "Failed to bind the address to our listening socket. Winsock Error:" + std::to_string(WSAGetLastError());
+		MessageBoxA(0, ErrorMsg.c_str(), "Error", MB_OK | MB_ICONERROR);
 		exit(1);
 	}
 
-	//puts socket in listening state
 	if (listen(m_sListen, SOMAXCONN) == SOCKET_ERROR)
 	{
-		string errorMsg = "Failed to listen for the address binded to the socket. Winsock error " + to_string(WSAGetLastError());
-		MessageBoxA(NULL, errorMsg.c_str(), "Error", MB_OK | MB_ICONERROR);
+		std::string ErrorMsg = "Failed to listen on listening socket. Winsock Error:" + std::to_string(WSAGetLastError());
+		MessageBoxA(0, ErrorMsg.c_str(), "Error", MB_OK | MB_ICONERROR);
 		exit(1);
 	}
 
-	serverPtr = this;
+	m_idCounter = 0;
+	std::thread PST(packetSenderThread, ref(*this));
+	PST.detach();
+	m_threads.push_back(&PST);
+}
 
-	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)packetSenderThread, NULL, NULL, NULL);
+Server::~Server()
+{
+	m_terminateThreads = true;
+	for (std::thread* t : m_threads) //Wait for all created threads to end...
+	{
+		t->join();
+	}
 }
 
 bool Server::listenForNewConnections()
 {
-	SOCKET newConnectionSocket = accept(m_sListen, (SOCKADDR*)&m_address, &m_addressLenght);
-	int newConnectionID = m_connections.size();
-	if (newConnectionSocket == 0)
+	int addrlen = sizeof(m_address);
+	SOCKET newConnectionSocket = accept(m_sListen, (SOCKADDR*)&m_address, &addrlen); //Accept a new connection
+
+	if (newConnectionSocket == 0) //If accepting the client connection failed
 	{
-		cout << "Failed to accept the clients connection" << endl;
+		std::cout << "Failed to accept the client's connection." << std::endl;
 		return false;
 	}
-	else {
-		lock_guard<mutex> lock(m_connectionManagerMutex);
+	else //If client connection properly accepted
+	{
+		std::lock_guard<shared_mutex> lock(m_connectionManagerMutex);
+		std::shared_ptr<Connection> newConnection(std::make_shared<Connection>(m_idCounter, newConnectionSocket));
+		m_idCounter++;
 
-		if (m_unusedConnections > 0)
-		{
-			for (shared_ptr<Connection> con : m_connections)
-			{
-				if (!con->activeConnection)
-				{
-					con->socket = newConnectionSocket;
-					con->activeConnection = true;
-					newConnectionID = con->id;
-					m_unusedConnections--;
-					break;
-				}
-			}
-		}
-		else {
-			addConnection(newConnectionSocket);
-			cout << "Client has been sucessfully conected" << endl;
-		}
+		m_connections.push_back(newConnection);
+		std::cout << "Client Connected! ID:" << newConnection->id << std::endl;
+		std::thread CHT(clientHandlerThread, std::ref(*this), newConnection);
+		CHT.detach();
+		m_threads.push_back(&CHT);
 
-		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)clientHandlerThread, (LPVOID)(newConnectionID), NULL, NULL);
+		/*UpdateInfo temp;
+		temp.color = Color::Red;
+		temp.pos = Vector2f(100.0f, 4.0f);
+		temp.state = State::Yes;
+		sendUpdateInfo(m_connections[m_idCounter - 1], temp);*/
+
+		return true;
 	}
 }
 
-bool Server::closeConnection(int t_id)
+bool Server::closeConnection(shared_ptr<Connection> t_connection)
 {
-	if (closesocket(m_connections[t_id]->socket) == SOCKET_ERROR)
+	if (closesocket(t_connection->socket) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() == WSAENOTSOCK) return true;
 
-		string errorMessage = "Failed to close the socket for client id: " + to_string(t_id) + " . Winsock error: " + to_string(WSAGetLastError()) + ".";
+		string errorMessage = "Failed to close the socket for client id: " + to_string(t_connection->id) + " . Winsock error: " + to_string(WSAGetLastError()) + ".";
 		MessageBoxA(NULL, errorMessage.c_str(), "Error", MB_OK | MB_ICONERROR);
 
 		return false;
@@ -102,56 +101,38 @@ void Server::addConnection(SOCKET& t_socket)
 	m_connections.push_back(make_shared<Connection>(m_connections.size(), t_socket));
 }
 
-bool Server::processPacket(int t_id, PacketType t_packetType)
+bool Server::processPacket(shared_ptr<Connection> t_connection, PacketType t_packetType)
 {
 	switch (t_packetType)
 	{
+	case PacketType::Update:
+	{
+		UpdateInfo temp;
+		getUpdateInfo(t_connection, temp);
+
+		std::cout << "Pos X: " << temp.pos.x << ", Pos Y: " << temp.pos.y << endl;
+		
+		break;
+	}
 	case PacketType::ChatMessage:
 	{
-		string message;
-		if (!getString(t_id, message)) return false;
+		std::string message; //string to store our message we received
+		if (!getString(t_connection, message)) //Get the chat message and store it in variable: Message
+			return false; //If we do not properly get the chat message, return false
+						  //Next we need to send the message out to each user
 
-
-		for (shared_ptr<Connection> con : m_connections)
+		PS::ChatMessage cm(message);
+		std::shared_ptr<Packet> msgPacket = std::make_shared<Packet>(cm.toPacket()); //use shared_ptr instead of sending with SendString so we don't have to reallocate packet for each connection
 		{
-			if (!con->activeConnection) continue; //if the connection is not active, continue
-
-			if (m_connections[t_id]->socket != con->socket)
+			std::shared_lock<std::shared_mutex> lock(m_connectionManagerMutex);
+			for (shared_ptr<Connection> con : m_connections) //For each connection...
 			{
-				sendString(con->id, message);
+				if (con == t_connection) //If connection is the user who sent the message...
+					continue;//Skip to the next user since there is no purpose in sending the message back to the user who sent it.
+				con->pm.append(msgPacket);
 			}
 		}
-
-		cout << "Chat message has been processed from client id: " << t_id << endl;
-		break;
-	}
-	case PacketType::FileTransferRequestFile:
-	{
-		string fileName;
-		if (!getString(t_id, fileName)) return false;
-
-		m_connections[t_id]->file.inFileStream.open(fileName, ios::binary | ios::ate);
-		if (!m_connections[t_id]->file.inFileStream.is_open())
-		{
-			cout << "Client id: " << t_id << " requested file " << fileName << ", but that file does not exist";
-			string errMsg = "Requested file " + fileName + " does not exist or was not found.";
-			sendString(t_id, errMsg);
-			return true;
-		}
-
-		m_connections[t_id]->file.fileName = fileName;
-		m_connections[t_id]->file.fileSize = m_connections[t_id]->file.inFileStream.tellg();
-		m_connections[t_id]->file.inFileStream.seekg(0);
-		m_connections[t_id]->file.fileOffset = 0;
-
-		if (!handlesSentFile(t_id)) return false;
-
-		break;
-	}
-	case PacketType::FileTransferRequestNextBuffer:
-	{
-		if (!handlesSentFile(t_id)) return false;
-		return true;
+		std::cout << "Processed chat message packet from user ID: " << t_connection->id << std::endl;
 		break;
 	}
 	default:
@@ -161,183 +142,132 @@ bool Server::processPacket(int t_id, PacketType t_packetType)
 	return true;
 }
 
-void Server::clientHandlerThread(int t_id)
+void Server::clientHandlerThread(Server& t_server, shared_ptr<Connection> t_connection)
 {
-	PacketType packetType;
+	PacketType packettype;
 	while (true)
 	{
-		if (!serverPtr->getPacketType(t_id, packetType)) break;
+		if (t_server.m_terminateThreads) break;
 
-		if (!serverPtr->processPacket(t_id, packetType)) break;
+		if (!t_server.getPacketType(t_connection, packettype)) break;
+
+		if (!t_server.processPacket(t_connection, packettype)) break; 
 	}
 
-	serverPtr->disconnectClient(t_id);
+	std::cout << "Lost connection to client ID: " << t_connection->id << std::endl;
+
+	t_server.disconnectClient(t_connection);
+
+	return;
 }
 
-void Server::packetSenderThread()
+void Server::packetSenderThread(Server& t_server)
 {
 	while (true)
 	{
-		for (shared_ptr<Connection> con : serverPtr->m_connections)
+		if (t_server.m_terminateThreads == true)
+			break;
+		shared_lock<shared_mutex> lock(t_server.m_connectionManagerMutex);
+		for (shared_ptr<Connection> con : t_server.m_connections) //for each connection...
 		{
-			if (con->pm.hasPendingPackets())
+			if (con->pm.hasPendingPackets()) //If there are pending packets for this connection's packet manager
 			{
-				Packet p = con->pm.retrieve();
-				if (!serverPtr->sendAll(con->id, p.getBuffer(), p.getSize()))
+				std::shared_ptr<Packet> p = con->pm.retrieve(); //Retrieve packet from packet manager
+				if (!t_server.sendAll(con, (const char*)(&p->getBuffer()[0]), p->getBuffer().size())) //send packet to connection
 				{
-					cout << "Failed to send packet to ID: " << con->id << endl;
+					std::cout << "Failed to send packet to ID: " << con->id << std::endl; //Print out if failed to send packet
 				}
-				delete p.getBuffer(); //clean up packet p
 			}
 		}
 		Sleep(5);
 	}
+	std::cout << "Ending Packet Sender Thread..." << std::endl;
 }
 
-bool Server::handlesSentFile(int t_id)
+void Server::disconnectClient(std::shared_ptr<Connection> t_connection)
 {
-	if (m_connections[t_id]->file.fileOffset >= m_connections[t_id]->file.fileSize) return true;
+	lock_guard<shared_mutex> lock(m_connectionManagerMutex);
 
-	if (!sendPacketType(t_id, PacketType::FileTransferByteBuffer)) return false;
-
-	m_connections[t_id]->file.remainingBytes = m_connections[t_id]->file.fileSize - m_connections[t_id]->file.fileOffset;
-
-	//file is finished sending
-	if (m_connections[t_id]->file.remainingBytes > m_connections[t_id]->file.bufferSize)
-	{
-		m_connections[t_id]->file.inFileStream.read(m_connections[t_id]->file.buffer, m_connections[t_id]->file.bufferSize);
-
-		if (!sendInt32_t(t_id, m_connections[t_id]->file.bufferSize)) return false;
-
-		if(!sendAll(t_id, m_connections[t_id]->file.buffer, m_connections[t_id]->file.bufferSize)) return false;
-
-		m_connections[t_id]->file.fileOffset += m_connections[t_id]->file.bufferSize;
-	}
-	else 
-	{
-		m_connections[t_id]->file.inFileStream.read(m_connections[t_id]->file.buffer, m_connections[t_id]->file.remainingBytes);
-
-		if (!sendInt32_t(t_id, m_connections[t_id]->file.remainingBytes)) return false;
-
-		if (!sendAll(t_id, m_connections[t_id]->file.buffer, m_connections[t_id]->file.remainingBytes)) return false;
-
-		m_connections[t_id]->file.fileOffset += m_connections[t_id]->file.remainingBytes;
-	}
-
-	if (m_connections[t_id]->file.fileOffset == m_connections[t_id]->file.fileSize)
-	{
-		if (!sendPacketType(t_id, PacketType::FileTransfer_EndOfFile)) return false;
-
-		cout << "File Sent: " << m_connections[t_id]->file.fileName << endl;
-		cout << "File size(bytes): " << m_connections[t_id]->file.fileSize << endl;
-	}
-
-	return true;
+	t_connection->pm.clearPackets();
+	closesocket(t_connection->socket);
+	m_connections.erase(std::remove(m_connections.begin(), m_connections.end(), t_connection)); //Remove connection from vector of connections
+	std::cout << "Cleaned up client: " << t_connection->id << "." << std::endl;
+	std::cout << "Total connections: " << m_connections.size() << std::endl;
 }
 
-void Server::disconnectClient(int t_id)
-{
-	lock_guard<mutex> lock(m_connectionManagerMutex);
-
-	//if it is already disconnected
-	if (!m_connections[t_id]->activeConnection) return;
-
-
-	m_connections[t_id]->pm.clearPackets();
-	m_connections[t_id]->activeConnection = false;
-
-	if (serverPtr->closeConnection(t_id))
-	{
-		cout << "Socket to the server for client id: " << t_id  << " has been closed." << endl;
-	}
-	else {
-		cout << "Socket to the server cannot be closed." << endl;
-	}
-
-	if (t_id == (m_connections.size() - 1))
-	{
-		m_connections.pop_back();
-
-		for (int i = m_connections.size() - 1; i >= 0 && m_connections.size() > 1; i--)
-		{
-			if (m_connections[i]->activeConnection) break;
-			m_connections.pop_back();
-			m_unusedConnections--;
-		}
-	}
-	else
-	{
-		m_unusedConnections++;
-	}
-}
-
-bool Server::sendAll(int t_id, char* t_data, int t_totalBytes)
+bool Server::sendAll(std::shared_ptr<Connection> t_connection, const char* t_data, const int t_totalBytes)
 {
 	int bytesSent = 0;
 	while (bytesSent < t_totalBytes)
 	{
-		int returnCheck = send(m_connections.at(t_id)->socket, t_data + bytesSent, t_totalBytes - bytesSent, NULL);
+		int returnCheck = send(t_connection->socket, t_data + bytesSent, t_totalBytes - bytesSent, NULL);
 		if (returnCheck == SOCKET_ERROR) return false;
 		bytesSent += returnCheck;
 	}
 	return true;
 }
 
-bool Server::sendInt32_t(int t_id, int32_t t_int)
+bool Server::sendInt32_t(std::shared_ptr<Connection> t_connection, int32_t t_int)
 {
 	t_int = htonl(t_int);
-	if (!sendAll(t_id, (char*)&t_int, sizeof(int32_t))) return false;
+	if (!sendAll(t_connection, (char*)&t_int, sizeof(int32_t))) return false;
 	return true;
 }
 
-bool Server::sendPacketType(int t_id, PacketType t_packetType)
+bool Server::sendPacketType(std::shared_ptr<Connection> t_connection, PacketType t_packetType)
 {
-	if (!sendInt32_t(t_id, (int32_t)t_packetType)) return false;
+	if (!sendInt32_t(t_connection, (int32_t)t_packetType)) return false;
 	return true;
 }
 
-void Server::sendString(int t_id, string t_string)
+void Server::sendString(std::shared_ptr<Connection> t_connection, const string t_string)
 {
 	PS::ChatMessage message(t_string);
-	m_connections[t_id]->pm.append(message.toPacket());
+	t_connection->pm.append(message.toPacket());
 }
 
-bool Server::recvAll(int t_id, char* t_data, int t_totalBytes)
+void Server::sendUpdateInfo(std::shared_ptr<Connection> t_connection, const UpdateInfo t_data)
+{
+	PS::GameUpdate update(t_data);
+	t_connection->pm.append(update.toPacket());
+}
+
+bool Server::recvAll(std::shared_ptr<Connection> t_connection, char* t_data, int t_totalBytes)
 {
 	int bytesRecieved = 0;
 	while (bytesRecieved < t_totalBytes)
 	{
-		int returnCheck = recv(m_connections[t_id]->socket, t_data + bytesRecieved, t_totalBytes - bytesRecieved, NULL);
+		int returnCheck = recv(t_connection->socket, t_data + bytesRecieved, t_totalBytes - bytesRecieved, NULL);
 		if (returnCheck == SOCKET_ERROR) return false;
 		bytesRecieved += returnCheck;
 	}
 	return true;
 }
 
-bool Server::getInt32_t(int t_id, int32_t& t_int)
+bool Server::getInt32_t(std::shared_ptr<Connection> t_connection, int32_t& t_int)
 {
-	if (!recvAll(t_id, (char*)&t_int, sizeof(int32_t))) return false;
+	if (!recvAll(t_connection, (char*)&t_int, sizeof(int32_t))) return false;
 	t_int = ntohl(t_int);
 	return true;
 }
 
-bool Server::getPacketType(int t_id, PacketType& t_packetType)
+bool Server::getPacketType(std::shared_ptr<Connection> t_connection, PacketType& t_packetType)
 {
 	int packetType;
-	if (!getInt32_t(t_id, packetType)) return false;
+	if (!getInt32_t(t_connection, packetType)) return false;
 	t_packetType = (PacketType)packetType;
 	return true;
 }
 
-bool Server::getString(int t_id, string& t_string)
+bool Server::getString(std::shared_ptr<Connection> t_connection, string& t_string)
 {
 	int32_t bufferlen;
-	if (!getInt32_t(t_id, bufferlen)) return false;
+	if (!getInt32_t(t_connection, bufferlen)) return false;
 
 	char* buffer = new char[bufferlen + 1];
 	buffer[bufferlen] = '\0';
 
-	if (!recvAll(t_id, buffer, bufferlen))
+	if (!recvAll(t_connection, buffer, bufferlen))
 	{
 		delete[] buffer;
 		return false;
@@ -347,4 +277,15 @@ bool Server::getString(int t_id, string& t_string)
 	delete[] buffer;
 
 	return true;
+}
+
+bool Server::getUpdateInfo(std::shared_ptr<Connection> t_connection, UpdateInfo& t_data)
+{
+	int32_t bufferlen;
+
+	if (!getInt32_t(t_connection, bufferlen)) return false;
+
+	if (bufferlen == 0) return 0;
+
+	return recvAll(t_connection, (char*)&t_data, bufferlen);
 }

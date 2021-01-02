@@ -7,7 +7,7 @@ Packet::Packet()
 {
 }
 
-Packet::Packet(const char* t_buffer, const int t_size)
+Packet::Packet(const char* t_buffer,const int t_size)
 {
 	append(t_buffer, t_size);
 }
