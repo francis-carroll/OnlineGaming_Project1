@@ -19,10 +19,10 @@ PS::GameUpdate::GameUpdate(const UpdateInfo& t_gameData)
 	m_data = t_gameData;
 }
 
-std::shared_ptr<Packet> PS::GameUpdate::toPacket()
+std::shared_ptr<Packet> PS::GameUpdate::toPacket(PacketType t_packetType)
 {
 	std::shared_ptr<Packet> p = std::make_shared<Packet>();
-	p->append(PacketType::Update);
+	p->append(t_packetType);
 	p->append(sizeof(m_data));
 	p->append(m_data);
 	return p;

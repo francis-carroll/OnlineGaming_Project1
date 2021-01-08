@@ -9,10 +9,15 @@
 #include <SFML/Graphics.hpp>
 #include <WinSock2.h>
 #include <Ws2tcpip.h>
+#include <shared_mutex>
 
 #include "Connection.h"
 #include "GameUpdate.h"
 #include "PacketStructs.h"
+
+class Player;
+class BasePlayer;
+class Game;
 
 using namespace std;
 
@@ -20,16 +25,20 @@ class Client
 {
 public:
     Client(string t_ip, int t_port);
-    bool connectSocket();
+    ~Client();
+    bool connectSocket(Game* t_game);
     bool closeConnection();
     
     //senders
     void sendUpdateInfo(UpdateInfo t_gameData);
     void sendString(string t_string);
+
+    shared_ptr<Connection> getClientConnection();
 private:
-    bool processPacket(PacketType t_packetType);
-    static void clientThread();
-    static void packetSenderThread(Client* t_client);
+    bool processPacket(PacketType t_packetType, Game* t_game);
+    static void clientThread(Client& t_client, Game* t_game);
+    static void packetSenderThread(Client& t_client);
+    void disconnectClient(shared_ptr<Connection> t_connection);
     
     //sending
     bool sendInt32_t(int32_t t_int);
@@ -43,10 +52,11 @@ private:
     bool getString(string& t_string);
     bool getUpdateInfo(UpdateInfo& t_gameData);
 
+    bool m_terminateThreads = false;
     SOCKADDR_IN m_address;
     int m_addressLenght = sizeof(m_address);
 
     shared_ptr<Connection> m_connection;
+    std::vector<std::thread*> m_threads;
+    shared_mutex m_connectionManagerMutex;
 };
-
-static Client* clientPtr;

@@ -2,18 +2,30 @@
 
 #include <SFML/Graphics.hpp>
 
-#include "BasePlayer.h"
-#include "AuthPlayer.h"
+#include <Player.h>
+#include <BasePlayer.h>
+#include <AuthPlayer.h>
+#include <Server.h>
 
 using namespace std;
 using namespace sf;
 
+enum class GameState
+{
+	Host,
+	Join
+};
+
 class Game
 {
 public:
-	Game();
+	Game(GameState t_state, string t_ip);
 	~Game();
 	void run();
+
+	vector<Player*>* getPlayers();
+	BasePlayer* getContainer();
+	void setContainer(BasePlayer* t_container);
 private:
 	void update(Time t_deltaTime);
 	void render();
@@ -22,10 +34,13 @@ private:
 
 	sf::RenderWindow m_window;
 
-	shared_ptr<AuthPlayer> m_host;
+	BasePlayer* m_container = nullptr;
+	AuthPlayer* m_host = nullptr;
 
-	vector<shared_ptr<BasePlayer>> m_players;
+	vector<Player*>* m_players;
 
 	int m_playerCount;
+	GameState m_gameState;
+	std::thread* m_lc;
 };
 

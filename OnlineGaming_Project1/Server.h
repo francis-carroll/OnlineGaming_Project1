@@ -19,9 +19,10 @@ using namespace sf;
 class Server
 {
 public:
-    Server(int t_port, bool t_loopBacktoLocalHost = true);
+	Server(int t_port, bool t_loopBacktoLocalHost = true);
 	~Server();
-	bool listenForNewConnections();
+	static void listenForNewConnections(Server& t_server);
+	static bool listenForConnection(Server& t_server);
 private:
 	bool processPacket(std::shared_ptr<Connection> t_connection, PacketType t_packetType);
 	static void clientHandlerThread(Server& t_server, shared_ptr<Connection> t_connection);
@@ -52,5 +53,3 @@ private:
 	shared_mutex m_connectionManagerMutex;
 	int m_idCounter = 0;
 };
-
-static Server* serverPtr;

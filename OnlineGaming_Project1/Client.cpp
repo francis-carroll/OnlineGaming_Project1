@@ -1,4 +1,7 @@
 #include "Client.h"
+#include <Game.h>
+#include "Player.h"
+#include "BasePlayer.h"
 
 Client::Client(string t_ip, int t_port) : 
     m_connection(make_shared<Connection>())
@@ -17,11 +20,18 @@ Client::Client(string t_ip, int t_port) :
     m_address.sin_port = htons(t_port);
     //set the fam to IPV4
     m_address.sin_family = AF_INET;
-
-    clientPtr = this;
 }
 
-bool Client::connectSocket()
+Client::~Client()
+{
+    m_terminateThreads = true;
+    for (std::thread* t : m_threads) //Wait for all created threads to end...
+    {
+        t->join();
+    }
+}
+
+bool Client::connectSocket(Game* t_game)
 {
     m_connection->socket = socket(AF_INET, SOCK_STREAM, NULL);
     if (connect(m_connection->socket, (SOCKADDR*)&m_address, m_addressLenght) != 0)
@@ -29,9 +39,15 @@ bool Client::connectSocket()
         MessageBoxA(NULL, "Failed to connect", "Error", MB_OK | MB_ICONERROR);
         return false;
     }
-    CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)clientThread, NULL, NULL, NULL);
-    /*std::thread CHT(packetSenderThread, std::ref(*this));
-    CHT.detach();*/
+
+    std::thread CT(clientThread, std::ref(*this), t_game);
+    CT.detach();
+    m_threads.push_back(&CT);
+
+    std::thread PST(packetSenderThread, std::ref(*this));
+    PST.detach();
+    m_threads.push_back(&PST);
+
     return true;
 }
 
@@ -49,16 +65,43 @@ bool Client::closeConnection()
     return true;
 }
 
-bool Client::processPacket(PacketType t_packetType)
+bool Client::processPacket(PacketType t_packetType, Game* t_game)
 {
     switch (t_packetType)
     {
-    case PacketType::Update:
+    case PacketType::UpdateRecv:
     {
         UpdateInfo temp;
         getUpdateInfo(temp);
-        std::cout << "Pos X: " << temp.pos.x << ", Pos Y: " << temp.pos.y << endl;
 
+        t_game->getPlayers()->at(temp.t_id)->setPosition(temp.pos);
+        t_game->getPlayers()->at(temp.t_id)->setColor(temp.color);
+
+        break;
+    }
+    case PacketType::SetupClient:
+    {
+        UpdateInfo temp;
+        getUpdateInfo(temp);
+
+        if (t_game->getContainer() != nullptr)
+        {
+            t_game->getPlayers()->at(temp.t_id) = t_game->getContainer();
+            t_game->getPlayers()->at(temp.t_id)->setID(temp.t_id);
+            t_game->setContainer(nullptr);
+        }
+
+        t_game->getPlayers()->at(temp.t_id)->setPosition(temp.pos);
+        t_game->getPlayers()->at(temp.t_id)->setColor(temp.color);
+
+        UpdateInfo updateData;
+        updateData.t_id = t_game->getPlayers()->at(temp.t_id)->getID();
+        updateData.pos = t_game->getPlayers()->at(temp.t_id)->getPosition();
+        updateData.color = t_game->getPlayers()->at(temp.t_id)->getColor();
+
+        PS::GameUpdate is(updateData);
+        m_connection->pm.append(is.toPacket(PacketType::UpdateRecv));
+        
         break;
     }
     case PacketType::ChatMessage:
@@ -75,42 +118,48 @@ bool Client::processPacket(PacketType t_packetType)
     return true;
 }
 
-void Client::clientThread()
+void Client::clientThread(Client& t_client, Game* t_game)
 {
     PacketType packetType;
     while (true)
     {
-        if (!clientPtr->getPacketType(packetType)) break;
+        if (t_client.m_terminateThreads) break;
 
-        if (!clientPtr->processPacket(packetType)) break;
+        if (!t_client.getPacketType(packetType)) break;
+
+        if (!t_client.processPacket(packetType, t_game)) break;
     }
     cout << "Lost connection to the server" << endl;
 
-    //close the connection
-    if (clientPtr->closeConnection())
-    {
-        cout << "Socket to the server has been closed." << endl;
-    }
-    else {
-        cout << "Socket to the server cannot be closed." << endl;
-    }
+    t_client.disconnectClient(t_client.m_connection);
 }
 
-void Client::packetSenderThread(Client* t_client)
+void Client::packetSenderThread(Client& t_client)
 {
     while (true)
     {
-        if (t_client->m_connection->pm.hasPendingPackets()) //If there are pending packets for this connection's packet manager
+        if (t_client.m_terminateThreads == true)
+            break;
+        if (t_client.m_connection->pm.hasPendingPackets()) //If there are pending packets for this connection's packet manager
         {
-            std::shared_ptr<Packet> p = t_client->m_connection->pm.retrieve(); //Retrieve packet from packet manager
-            if (!t_client->sendAll((char*)(&p->getBuffer()[0]), p->getBuffer().size())) //send packet to connection
+            std::shared_ptr<Packet> p = t_client.m_connection->pm.retrieve(); //Retrieve packet from packet manager
+            if (!t_client.sendAll((char*)(&p->getBuffer()[0]), p->getBuffer().size())) //send packet to connection
             {
-                std::cout << "Failed to send packet to ID: " << t_client->m_connection->id << std::endl; //Print out if failed to send packet
+                std::cout << "Failed to send packet to ID: " << t_client.m_connection->id << std::endl; //Print out if failed to send packet
             }
         }
         Sleep(5);
     }
     std::cout << "Ending Packet Sender Thread..." << std::endl;
+}
+
+void Client::disconnectClient(shared_ptr<Connection> t_connection)
+{
+    lock_guard<shared_mutex> lock(m_connectionManagerMutex);
+
+    t_connection->pm.clearPackets();
+    closesocket(t_connection->socket);
+    std::cout << "Closed client: " << t_connection->id << "." << std::endl;
 }
 
 bool Client::sendAll(char* t_data, int t_totalBytes)
@@ -161,7 +210,7 @@ bool Client::sendPacketType(PacketType t_packetType)
 void Client::sendUpdateInfo(UpdateInfo t_gameData)
 {
     PS::GameUpdate update(t_gameData);
-    m_connection->pm.append(update.toPacket());
+    m_connection->pm.append(update.toPacket(PacketType::UpdateRecv));
 }
 
 bool Client::getPacketType(PacketType& t_packetType)
@@ -176,6 +225,11 @@ void Client::sendString(string t_string)
 {
     PS::ChatMessage message(t_string);
     m_connection->pm.append(message.toPacket());
+}
+
+shared_ptr<Connection> Client::getClientConnection()
+{
+    return m_connection;
 }
 
 bool Client::getString(string& t_string)

@@ -19,7 +19,7 @@ Server::Server(int t_port, bool t_loopBacktoLocalHost)
 	m_address.sin_port = htons(t_port); //Port
 	m_address.sin_family = AF_INET;
 
-	m_sListen = socket(AF_INET, SOCK_STREAM, 0); 
+	m_sListen = socket(AF_INET, SOCK_STREAM, 0);
 
 	if (bind(m_sListen, (SOCKADDR*)&m_address, sizeof(m_address)) == SOCKET_ERROR)
 	{
@@ -50,35 +50,11 @@ Server::~Server()
 	}
 }
 
-bool Server::listenForNewConnections()
+void Server::listenForNewConnections(Server& t_server)
 {
-	int addrlen = sizeof(m_address);
-	SOCKET newConnectionSocket = accept(m_sListen, (SOCKADDR*)&m_address, &addrlen); //Accept a new connection
-
-	if (newConnectionSocket == 0) //If accepting the client connection failed
+	for (int i = 0; i < 2; i++)
 	{
-		std::cout << "Failed to accept the client's connection." << std::endl;
-		return false;
-	}
-	else //If client connection properly accepted
-	{
-		std::lock_guard<shared_mutex> lock(m_connectionManagerMutex);
-		std::shared_ptr<Connection> newConnection(std::make_shared<Connection>(m_idCounter, newConnectionSocket));
-		m_idCounter++;
-
-		m_connections.push_back(newConnection);
-		std::cout << "Client Connected! ID:" << newConnection->id << std::endl;
-		std::thread CHT(clientHandlerThread, std::ref(*this), newConnection);
-		CHT.detach();
-		m_threads.push_back(&CHT);
-
-		/*UpdateInfo temp;
-		temp.color = Color::Red;
-		temp.pos = Vector2f(100.0f, 4.0f);
-		temp.state = State::Yes;
-		sendUpdateInfo(m_connections[m_idCounter - 1], temp);*/
-
-		return true;
+		 listenForConnection(t_server);
 	}
 }
 
@@ -101,17 +77,74 @@ void Server::addConnection(SOCKET& t_socket)
 	m_connections.push_back(make_shared<Connection>(m_connections.size(), t_socket));
 }
 
+bool Server::listenForConnection(Server& t_server)
+{
+	int addrlen = sizeof(t_server.m_address);
+	SOCKET newConnectionSocket = accept(t_server.m_sListen, (SOCKADDR*)&t_server.m_address, &addrlen); //Accept a new connection
+
+	if (newConnectionSocket == 0) //If accepting the client connection failed
+	{
+		std::cout << "Failed to accept the client's connection." << std::endl;
+		return false;
+	}
+	else //If client connection properly accepted
+	{
+		std::lock_guard<shared_mutex> lock(t_server.m_connectionManagerMutex);
+		std::shared_ptr<Connection> newConnection(std::make_shared<Connection>(t_server.m_idCounter, newConnectionSocket));
+		t_server.m_idCounter++;
+
+		t_server.m_connections.push_back(newConnection);
+		std::cout << "Client Connected! ID:" << newConnection->id << std::endl;
+
+		UpdateInfo temp;
+		temp.t_id = t_server.m_connections.size() - 1;
+		switch (t_server.m_connections.size() - 1)
+		{
+		case 0:
+			temp.color = Color::Yellow;
+			temp.pos = Vector2f(20.0f, 20.0f);
+			break;
+		case 1:
+			temp.color = Color::Blue;
+			temp.pos = Vector2f(400.0f, 400.0f);
+			break;
+		case 2:
+			temp.color = Color::Magenta;
+			temp.pos = Vector2f(100.0f, 300.0f);
+			break;
+		};
+
+		PS::GameUpdate is(temp);
+		t_server.m_connections[t_server.m_connections.size() - 1]->pm.append(is.toPacket(PacketType::SetupClient));
+
+		std::thread CHT(t_server.clientHandlerThread, std::ref(t_server), newConnection);
+		CHT.detach();
+		t_server.m_threads.push_back(&CHT);
+
+		return true;
+	}
+}
+
 bool Server::processPacket(shared_ptr<Connection> t_connection, PacketType t_packetType)
 {
 	switch (t_packetType)
 	{
-	case PacketType::Update:
+	case PacketType::UpdateRecv:
 	{
 		UpdateInfo temp;
 		getUpdateInfo(t_connection, temp);
 
-		std::cout << "Pos X: " << temp.pos.x << ", Pos Y: " << temp.pos.y << endl;
-		
+		PS::GameUpdate um(temp);
+		std::shared_ptr<Packet> msgPacket = std::make_shared<Packet>(um.toPacket(PacketType::UpdateRecv)); //use shared_ptr instead of sending with SendString so we don't have to reallocate packet for each connection
+		{
+			std::shared_lock<std::shared_mutex> lock(m_connectionManagerMutex);
+			for (shared_ptr<Connection> con : m_connections) //For each connection...
+			{
+				if (con == t_connection) //If connection is the user who sent the message...
+					continue;//Skip to the next user since there is no purpose in sending the message back to the user who sent it.
+				con->pm.append(msgPacket);
+			}
+		}
 		break;
 	}
 	case PacketType::ChatMessage:
@@ -151,7 +184,7 @@ void Server::clientHandlerThread(Server& t_server, shared_ptr<Connection> t_conn
 
 		if (!t_server.getPacketType(t_connection, packettype)) break;
 
-		if (!t_server.processPacket(t_connection, packettype)) break; 
+		if (!t_server.processPacket(t_connection, packettype)) break;
 	}
 
 	std::cout << "Lost connection to client ID: " << t_connection->id << std::endl;
@@ -229,7 +262,7 @@ void Server::sendString(std::shared_ptr<Connection> t_connection, const string t
 void Server::sendUpdateInfo(std::shared_ptr<Connection> t_connection, const UpdateInfo t_data)
 {
 	PS::GameUpdate update(t_data);
-	t_connection->pm.append(update.toPacket());
+	t_connection->pm.append(update.toPacket(PacketType::UpdateRecv));
 }
 
 bool Server::recvAll(std::shared_ptr<Connection> t_connection, char* t_data, int t_totalBytes)

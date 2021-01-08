@@ -25,6 +25,18 @@
     <Filter Include="Source Files\Networking">
       <UniqueIdentifier>{604e91e0-f2a3-4ea6-a8be-f37a60500758}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Networking\Client">
+      <UniqueIdentifier>{d1527215-27a3-4fe6-881f-728436b813ec}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Networking\Client">
+      <UniqueIdentifier>{5f302791-0d18-46a7-8ec3-dc519d122f5d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Networking\Server">
+      <UniqueIdentifier>{2d9ef4fa-c8a1-47db-b4d2-55e039a2ccb8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Networking\Server">
+      <UniqueIdentifier>{3cda703a-0366-4aab-90a4-efe1829977e1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Game.h">
@@ -38,9 +50,6 @@
     </ClInclude>
     <ClInclude Include="Globals.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Client.h">
-      <Filter>Header Files\Networking</Filter>
     </ClInclude>
     <ClInclude Include="PacketType.h">
       <Filter>Header Files\Networking</Filter>
@@ -60,6 +69,15 @@
     <ClInclude Include="PacketManager.h">
       <Filter>Header Files\Networking</Filter>
     </ClInclude>
+    <ClInclude Include="Client.h">
+      <Filter>Header Files\Networking\Client</Filter>
+    </ClInclude>
+    <ClInclude Include="Server.h">
+      <Filter>Header Files\Networking\Server</Filter>
+    </ClInclude>
+    <ClInclude Include="Player.h">
+      <Filter>Header Files\Entities</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Game.cpp">
@@ -74,9 +92,6 @@
     <ClCompile Include="AuthPlayer.cpp">
       <Filter>Source Files\Entities</Filter>
     </ClCompile>
-    <ClCompile Include="Client.cpp">
-      <Filter>Source Files\Networking</Filter>
-    </ClCompile>
     <ClCompile Include="PacketStructs.cpp">
       <Filter>Source Files\Networking</Filter>
     </ClCompile>
@@ -85,6 +100,15 @@
     </ClCompile>
     <ClCompile Include="PacketManager.cpp">
       <Filter>Source Files\Networking</Filter>
+    </ClCompile>
+    <ClCompile Include="Client.cpp">
+      <Filter>Source Files\Networking\Client</Filter>
+    </ClCompile>
+    <ClCompile Include="Server.cpp">
+      <Filter>Source Files\Networking\Server</Filter>
+    </ClCompile>
+    <ClCompile Include="Player.cpp">
+      <Filter>Source Files\Entities</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -1,39 +1,24 @@
 #pragma once
 
-#include <SFML/Graphics.hpp>
+#include <Client.h>
+#include <Player.h>
 
-using namespace std;
-using namespace sf;
+class Game;
 
-class BasePlayer
+class BasePlayer : public Player
 {
 public:
-	BasePlayer(int t_id);
-	BasePlayer(int t_id, Vector2f t_position ,float t_radius);
+	BasePlayer(int t_id, string t_ip);
+	BasePlayer(int t_id, string t_ip, Identifier t_identifier);
+	BasePlayer(int t_id, string t_ip, Vector2f t_position, float t_radius);
+	BasePlayer(int t_id, string t_ip, Vector2f t_position, float t_radius, Identifier t_identifier);
 	~BasePlayer();
 
+	void setupClient(Game* t_game);
 	void update(Time t_deltaTime);
-	void render(RenderWindow& t_window);
 
-	//setters
-	void setActivePlayer(bool t_bool);
-
-	//getters
-	Vector2f getPosition();
-	int getID();
-private:
-	void setupBasePlayer();
-	void movement(Time t_deltaTime);
-	void screenWrap();
+	shared_ptr<Client> getClient();
 protected:
-	const float SPEED = 20.0f;
-	const float RATE_OF_FRICTION = 0.95f;
-
-	shared_ptr<CircleShape> m_circleShape;
-	Vector2f m_position;
-	Vector2f m_velocity;
-	float m_radius;
-	bool m_activePlayer;
-	int m_id;
+	void movement(Time t_deltaTime);
+	shared_ptr<Client> m_client;
 };
-

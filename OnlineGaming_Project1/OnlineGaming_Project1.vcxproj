@@ -154,6 +154,8 @@
     <ClInclude Include="PacketManager.h" />
     <ClInclude Include="PacketStructs.h" />
     <ClInclude Include="PacketType.h" />
+    <ClInclude Include="Player.h" />
+    <ClInclude Include="Server.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AuthPlayer.cpp" />
@@ -164,6 +166,8 @@
     <ClCompile Include="Packet.cpp" />
     <ClCompile Include="PacketManager.cpp" />
     <ClCompile Include="PacketStructs.cpp" />
+    <ClCompile Include="Player.cpp" />
+    <ClCompile Include="Server.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

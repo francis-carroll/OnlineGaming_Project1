@@ -7,14 +7,9 @@
 using namespace std;
 using namespace sf;
 
-
-enum class State {
-	Yes, NO
-};
-
 struct UpdateInfo
 {
+	int t_id;
 	Color color;
 	Vector2f pos;
-	State state;
 };

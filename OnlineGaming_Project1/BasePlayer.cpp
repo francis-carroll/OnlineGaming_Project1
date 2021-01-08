@@ -1,25 +1,24 @@
 #include "BasePlayer.h"
+#include <Game.h>
 
-BasePlayer::BasePlayer(int t_id) :
-	m_radius(10.0f),
-	m_activePlayer(false),
-	m_id(t_id),
-	m_position(Vector2f(0.0f,0.0f)),
-	m_velocity(Vector2f(0.0f, 0.0f)),
-	m_circleShape(make_shared<CircleShape>())
+BasePlayer::BasePlayer(int t_id, string t_ip) :
+	Player(t_id, Identifier::Client)
 {
-	setupBasePlayer();
 }
 
-BasePlayer::BasePlayer(int t_id, Vector2f t_position, float t_radius) :
-	m_radius(t_radius),
-	m_position(t_position),
-	m_id(t_id),
-	m_activePlayer(false),
-	m_velocity(Vector2f(0.0f, 0.0f)),
-	m_circleShape(make_shared<CircleShape>())
+BasePlayer::BasePlayer(int t_id, string t_ip, Identifier t_identifier) :
+	Player(t_id, t_identifier)
 {
-	setupBasePlayer();
+}
+
+BasePlayer::BasePlayer(int t_id, string t_ip, Vector2f t_position, float t_radius) :
+	Player(t_id, t_position, t_radius, Identifier::Client)
+{
+}
+
+BasePlayer::BasePlayer(int t_id, string t_ip, Vector2f t_position, float t_radius, Identifier t_identifier)   :
+	Player(t_id, t_position, t_radius, t_identifier)
+{
 }
 
 BasePlayer::~BasePlayer()
@@ -28,39 +27,25 @@ BasePlayer::~BasePlayer()
 
 void BasePlayer::update(Time t_deltaTime)
 {
-	if (m_activePlayer)
+	if (m_client->getClientConnection()->activeConnection && m_activePlayer)
 	{
 		movement(t_deltaTime);
-		screenWrap();
+		Player::update(t_deltaTime);
 	}
 }
 
-void BasePlayer::render(RenderWindow& t_window)
+void BasePlayer::setupClient(Game* t_game)
 {
-	t_window.draw(*m_circleShape);
+	m_client = make_shared<Client>("127.0.0.1", 1111);
+	if (!m_client->connectSocket(t_game))
+	{
+		cout << "Failed to connect to server" << endl;
+	}
 }
 
-void BasePlayer::setActivePlayer(bool t_bool)
+shared_ptr<Client> BasePlayer::getClient()
 {
-	m_activePlayer = t_bool;
-}
-
-Vector2f BasePlayer::getPosition()
-{
-	return m_position;
-}
-
-int BasePlayer::getID()
-{
-	return m_id;
-}
-
-void BasePlayer::setupBasePlayer()
-{
-	m_circleShape->setRadius(m_radius);
-	m_circleShape->setPosition(m_position);
-	m_circleShape->setFillColor(Color::Red);
-	m_circleShape->setOrigin(Vector2f(m_radius, m_radius));
+	return m_client;
 }
 
 void BasePlayer::movement(Time t_deltaTime)
@@ -94,28 +79,4 @@ void BasePlayer::movement(Time t_deltaTime)
 
 	//applies friction to player movement
 	m_velocity *= RATE_OF_FRICTION;
-}
-
-void BasePlayer::screenWrap()
-{
-	//right side
-	if (m_position.x - m_radius > 800.0f)
-	{
-		m_position = Vector2f(0.0f, m_position.y);
-	}
-	//left side
-	if (m_position.x + m_radius < 0)
-	{
-		m_position = Vector2f(800.0f, m_position.y);
-	}
-	//top
-	if (m_position.y + m_radius < 0)
-	{
-		m_position = Vector2f(m_position.x, 600.0f);
-	}
-	//bottom
-	if (m_position.y - m_radius > 600.0f)
-	{
-		m_position = Vector2f(m_position.x, 0.0f);
-	}
 }

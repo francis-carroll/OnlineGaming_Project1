@@ -25,7 +25,7 @@ namespace PS
 	{
 	public:
 		GameUpdate(const UpdateInfo& t_gameData);
-		std::shared_ptr<Packet> toPacket();
+		std::shared_ptr<Packet> toPacket(PacketType t_packetType);
 	private:
 		UpdateInfo m_data;
 	};
