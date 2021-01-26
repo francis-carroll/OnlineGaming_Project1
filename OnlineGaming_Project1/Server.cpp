@@ -52,9 +52,12 @@ Server::~Server()
 
 void Server::listenForNewConnections(Server& t_server)
 {
-	for (int i = 0; i < 2; i++)
+	while(true)
 	{
-		 listenForConnection(t_server);
+		if (t_server.m_activeConnection < 3)
+		{
+			listenForConnection(t_server);
+		}
 	}
 }
 
@@ -91,37 +94,52 @@ bool Server::listenForConnection(Server& t_server)
 	{
 		std::lock_guard<shared_mutex> lock(t_server.m_connectionManagerMutex);
 		std::shared_ptr<Connection> newConnection(std::make_shared<Connection>(t_server.m_idCounter, newConnectionSocket));
-		t_server.m_idCounter++;
+		//t_server.m_idCounter++;
 
 		t_server.m_connections.push_back(newConnection);
+		t_server.m_activeConnection++;
 		std::cout << "Client Connected! ID:" << newConnection->id << std::endl;
-
-		UpdateInfo temp;
-		temp.t_id = t_server.m_connections.size() - 1;
-		switch (t_server.m_connections.size() - 1)
-		{
-		case 0:
-			temp.color = Color::Yellow;
-			temp.pos = Vector2f(20.0f, 20.0f);
-			break;
-		case 1:
-			temp.color = Color::Blue;
-			temp.pos = Vector2f(400.0f, 400.0f);
-			break;
-		case 2:
-			temp.color = Color::Magenta;
-			temp.pos = Vector2f(100.0f, 300.0f);
-			break;
-		};
-
-		PS::GameUpdate is(temp);
-		t_server.m_connections[t_server.m_connections.size() - 1]->pm.append(is.toPacket(PacketType::SetupClient));
 
 		std::thread CHT(t_server.clientHandlerThread, std::ref(t_server), newConnection);
 		CHT.detach();
 		t_server.m_threads.push_back(&CHT);
 
 		return true;
+	}
+}
+
+int Server::getConnectionSize()
+{
+	return m_activeConnection;
+}
+
+void Server::initGame(int t_target)
+{
+	for (int i = 0; i < m_connections.size(); i++)
+	{
+		StartInfo temp;
+		temp.target = t_target;
+		temp.t_id = i;
+		switch (i)
+		{
+		case 0:
+			temp.playerType = ColorPlayer::Red;
+			temp.pos = Vector2f(100.0f, 100.0f);
+			break;
+		case 1:
+			temp.playerType = ColorPlayer::Yellow;
+			temp.pos = Vector2f(400.0f, 100.0f);
+			break;
+		case 2:
+			temp.playerType = ColorPlayer::Cyan;
+			temp.pos = Vector2f(100.0f, 400.0f);
+			break;
+		default:
+			break;
+		};
+
+		PS::StartUpdate is(temp);
+		m_connections[i]->pm.append(is.toPacket(PacketType::SetupClient));
 	}
 }
 
@@ -140,9 +158,52 @@ bool Server::processPacket(shared_ptr<Connection> t_connection, PacketType t_pac
 			std::shared_lock<std::shared_mutex> lock(m_connectionManagerMutex);
 			for (shared_ptr<Connection> con : m_connections) //For each connection...
 			{
-				if (con == t_connection) //If connection is the user who sent the message...
-					continue;//Skip to the next user since there is no purpose in sending the message back to the user who sent it.
-				con->pm.append(msgPacket);
+				if (con->activeConnection)
+				{
+					if (con == t_connection) //If connection is the user who sent the message...
+						continue;//Skip to the next user since there is no purpose in sending the message back to the user who sent it.
+					con->pm.append(msgPacket);
+				}
+			}
+		}
+		break;
+	}
+	case PacketType::UpdateState:
+	{
+		StateInfo temp;
+		getStateInfo(t_connection, temp);
+
+		PS::StateUpdate um(temp);
+		std::shared_ptr<Packet> msgPacket = std::make_shared<Packet>(um.toPacket(PacketType::RecieveState)); //use shared_ptr instead of sending with SendString so we don't have to reallocate packet for each connection
+		{
+			std::shared_lock<std::shared_mutex> lock(m_connectionManagerMutex);
+			for (shared_ptr<Connection> con : m_connections) //For each connection...
+			{
+				if (con->activeConnection)
+				{
+					if (con == t_connection) //If connection is the user who sent the message...
+						continue;//Skip to the next user since there is no purpose in sending the message back to the user who sent it.
+					con->pm.append(msgPacket);
+				}
+			}
+		}
+		break;
+	}
+	case PacketType::GameOver:
+	{
+		EndInfo temp;
+		getEndInfo(t_connection, temp);
+
+		PS::EndUpdate um(temp);
+		std::shared_ptr<Packet> msgPacket = std::make_shared<Packet>(um.toPacket(PacketType::GameOver)); //use shared_ptr instead of sending with SendString so we don't have to reallocate packet for each connection
+		{
+			std::shared_lock<std::shared_mutex> lock(m_connectionManagerMutex);
+			for (shared_ptr<Connection> con : m_connections) //For each connection...
+			{
+				if (con->activeConnection)
+				{
+					con->pm.append(msgPacket);
+				}
 			}
 		}
 		break;
@@ -203,7 +264,7 @@ void Server::packetSenderThread(Server& t_server)
 		shared_lock<shared_mutex> lock(t_server.m_connectionManagerMutex);
 		for (shared_ptr<Connection> con : t_server.m_connections) //for each connection...
 		{
-			if (con->pm.hasPendingPackets()) //If there are pending packets for this connection's packet manager
+			if (con->pm.hasPendingPackets() && con->activeConnection) //If there are pending packets for this connection's packet manager
 			{
 				std::shared_ptr<Packet> p = con->pm.retrieve(); //Retrieve packet from packet manager
 				if (!t_server.sendAll(con, (const char*)(&p->getBuffer()[0]), p->getBuffer().size())) //send packet to connection
@@ -224,6 +285,7 @@ void Server::disconnectClient(std::shared_ptr<Connection> t_connection)
 	t_connection->pm.clearPackets();
 	closesocket(t_connection->socket);
 	m_connections.erase(std::remove(m_connections.begin(), m_connections.end(), t_connection)); //Remove connection from vector of connections
+	m_activeConnection--;
 	std::cout << "Cleaned up client: " << t_connection->id << "." << std::endl;
 	std::cout << "Total connections: " << m_connections.size() << std::endl;
 }
@@ -313,6 +375,28 @@ bool Server::getString(std::shared_ptr<Connection> t_connection, string& t_strin
 }
 
 bool Server::getUpdateInfo(std::shared_ptr<Connection> t_connection, UpdateInfo& t_data)
+{
+	int32_t bufferlen;
+
+	if (!getInt32_t(t_connection, bufferlen)) return false;
+
+	if (bufferlen == 0) return 0;
+
+	return recvAll(t_connection, (char*)&t_data, bufferlen);
+}
+
+bool Server::getStateInfo(shared_ptr<Connection> t_connection, StateInfo& t_data)
+{
+	int32_t bufferlen;
+
+	if (!getInt32_t(t_connection, bufferlen)) return false;
+
+	if (bufferlen == 0) return 0;
+
+	return recvAll(t_connection, (char*)&t_data, bufferlen);
+}
+
+bool Server::getEndInfo(shared_ptr<Connection> t_connection, EndInfo& t_data)
 {
 	int32_t bufferlen;
 

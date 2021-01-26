@@ -4,5 +4,8 @@ enum class PacketType
 {
 	SetupClient,
 	UpdateRecv,
-	ChatMessage
+	ChatMessage,
+	UpdateState,
+	RecieveState,
+	GameOver
 };

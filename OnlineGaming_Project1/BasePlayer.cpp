@@ -72,10 +72,10 @@ void BasePlayer::movement(Time t_deltaTime)
 		m_velocity += Vector2f(0.0f, -SPEED);
 	}
 
-	m_position += t_deltaTime.asSeconds() * m_velocity;
+	*m_position += t_deltaTime.asSeconds() * m_velocity;
 
 	//sets the circles position
-	m_circleShape->setPosition(m_position);
+	m_circleShape->setPosition(*m_position);
 
 	//applies friction to player movement
 	m_velocity *= RATE_OF_FRICTION;

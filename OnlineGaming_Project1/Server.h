@@ -23,6 +23,8 @@ public:
 	~Server();
 	static void listenForNewConnections(Server& t_server);
 	static bool listenForConnection(Server& t_server);
+	int getConnectionSize();
+	void initGame(int t_target);
 private:
 	bool processPacket(std::shared_ptr<Connection> t_connection, PacketType t_packetType);
 	static void clientHandlerThread(Server& t_server, shared_ptr<Connection> t_connection);
@@ -44,6 +46,8 @@ private:
 	bool getPacketType(shared_ptr<Connection> t_connection, PacketType& t_packetType);
 	bool getString(shared_ptr<Connection> t_connection, string& t_string);
 	bool getUpdateInfo(shared_ptr<Connection> t_connection, UpdateInfo& t_data);
+	bool getStateInfo(shared_ptr<Connection> t_connection, StateInfo& t_data);
+	bool getEndInfo(shared_ptr<Connection> t_connection, EndInfo& t_data);
 
 	vector<shared_ptr<Connection>> m_connections;
 	SOCKADDR_IN m_address;
@@ -52,4 +56,5 @@ private:
 	SOCKET m_sListen;
 	shared_mutex m_connectionManagerMutex;
 	int m_idCounter = 0;
+	int m_activeConnection = 0;
 };

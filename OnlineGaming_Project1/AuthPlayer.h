@@ -18,10 +18,13 @@ public:
 	~AuthPlayer();
 
 	void update(Time t_deltaTime, vector<Player*>& t_players);
+	void updateState();
 	shared_ptr<Server> getServer();
 private:
 	void handleCollisions(vector<Player*>& t_players);
 
 	shared_ptr<Server> m_server;
+
+	float m_gameTime;
 };
 

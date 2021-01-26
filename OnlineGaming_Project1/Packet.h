@@ -25,6 +25,9 @@ public:
 	void append(const size_t t_p);
 	void append(const Packet& t_p);
 	void append(const UpdateInfo& t_p);
+	void append(const StateInfo& t_p);
+	void append(const StartInfo& t_p);
+	void append(const EndInfo& t_p);
 	void append(const string& t_str);
 	void append(const char* t_buffer, const int t_size); //Will use existing allocated buffer and create packet from it
 

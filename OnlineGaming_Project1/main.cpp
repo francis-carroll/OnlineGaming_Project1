@@ -33,26 +33,17 @@ int main()
     shared_ptr<Game> m_game;
     if (state == "join")
     {
-        m_game = make_shared<Game>(GameState::Join, ip);
+        m_game = make_shared<Game>(JoinType::Join, ip);
     }
     else if (state == "host")
     {
-        m_game = make_shared<Game>(GameState::Host, ip);
+        m_game = make_shared<Game>(JoinType::Host, ip);
     }
     else
     {
         return 0;
     }
     m_game->run();
-    /*Client client("127.0.0.1", 1111);
 
-    if (!client.connectSocket())
-    {
-        cout << "Failed to connect to server" << endl;
-        system("pause");
-        return 1;
-    }*/
-
-    system("pause");
     return 0;
 }

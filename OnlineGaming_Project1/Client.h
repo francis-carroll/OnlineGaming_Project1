@@ -51,6 +51,9 @@ private:
     bool getPacketType(PacketType& t_packetType);
     bool getString(string& t_string);
     bool getUpdateInfo(UpdateInfo& t_gameData);
+    bool getStateInfo(StateInfo& t_data);
+    bool getStartInfo(StartInfo& t_data);
+    bool getEndInfo(EndInfo& t_data);
 
     bool m_terminateThreads = false;
     SOCKADDR_IN m_address;

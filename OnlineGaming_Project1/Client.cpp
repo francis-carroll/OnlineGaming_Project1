@@ -75,33 +75,59 @@ bool Client::processPacket(PacketType t_packetType, Game* t_game)
         getUpdateInfo(temp);
 
         t_game->getPlayers()->at(temp.t_id)->setPosition(temp.pos);
-        t_game->getPlayers()->at(temp.t_id)->setColor(temp.color);
+        t_game->getPlayers()->at(temp.t_id)->setColor(temp.playerType);
 
         break;
     }
     case PacketType::SetupClient:
     {
-        UpdateInfo temp;
-        getUpdateInfo(temp);
+        StartInfo temp;
+        getStartInfo(temp);
 
         if (t_game->getContainer() != nullptr)
         {
+            t_game->getPlayers()->clear();
+            for (int i = 0; i < 3; i++)
+            {
+                t_game->getPlayers()->push_back(new Player(i));
+                t_game->getPlayers()->at(i)->setPosition(Vector2f(-100.0f, -100.0f));
+            }
+
             t_game->getPlayers()->at(temp.t_id) = t_game->getContainer();
             t_game->getPlayers()->at(temp.t_id)->setID(temp.t_id);
-            t_game->setContainer(nullptr);
         }
 
+        t_game->getPlayers()->at(temp.t_id)->setColor(temp.playerType);
+        t_game->getPlayers()->at(temp.t_id)->setColorPlayer(temp.playerType);
+        t_game->getPlayers()->at(temp.t_id)->setTarget(temp.target);
         t_game->getPlayers()->at(temp.t_id)->setPosition(temp.pos);
-        t_game->getPlayers()->at(temp.t_id)->setColor(temp.color);
 
         UpdateInfo updateData;
         updateData.t_id = t_game->getPlayers()->at(temp.t_id)->getID();
         updateData.pos = t_game->getPlayers()->at(temp.t_id)->getPosition();
-        updateData.color = t_game->getPlayers()->at(temp.t_id)->getColor();
+        updateData.playerType = t_game->getPlayers()->at(temp.t_id)->getColorPlayer();
 
         PS::GameUpdate is(updateData);
         m_connection->pm.append(is.toPacket(PacketType::UpdateRecv));
         
+        break;
+    }
+    case PacketType::GameOver:
+    {
+        EndInfo state;
+        getEndInfo(state);
+
+        t_game->m_target = state.target;
+        t_game->m_winner = state.winner;
+
+        break;
+    }
+    case PacketType::RecieveState:
+    {
+        StateInfo state;
+        getStateInfo(state);
+
+        t_game->getContainer()->setState(state.m_gameState);
         break;
     }
     case PacketType::ChatMessage:
@@ -262,4 +288,37 @@ bool Client::getUpdateInfo(UpdateInfo& t_gameData)
     if (bufferlen == 0) return 0;
 
     return recvAll((char*)&t_gameData, bufferlen);
+}
+
+bool Client::getStateInfo(StateInfo& t_data)
+{
+    int32_t bufferlen;
+
+    if (!getInt32_t(bufferlen)) return false;
+
+    if (bufferlen == 0) return 0;
+
+    return recvAll((char*)&t_data, bufferlen);
+}
+
+bool Client::getStartInfo(StartInfo& t_data)
+{
+    int32_t bufferlen;
+
+    if (!getInt32_t(bufferlen)) return false;
+
+    if (bufferlen == 0) return 0;
+
+    return recvAll((char*)&t_data, bufferlen);
+}
+
+bool Client::getEndInfo(EndInfo& t_data)
+{
+    int32_t bufferlen;
+
+    if (!getInt32_t(bufferlen)) return false;
+
+    if (bufferlen == 0) return 0;
+
+    return recvAll((char*)&t_data, bufferlen);
 }

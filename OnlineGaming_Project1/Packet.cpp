@@ -53,6 +53,21 @@ void Packet::append(const UpdateInfo& t_p)
 	append((const char*)&t_p, sizeof(UpdateInfo));
 }
 
+void Packet::append(const StateInfo& t_p)
+{
+	append((const char*)&t_p, sizeof(StateInfo));
+}
+
+void Packet::append(const StartInfo& t_p)
+{
+	append((const char*)&t_p, sizeof(StartInfo));
+}
+
+void Packet::append(const EndInfo& t_p)
+{
+	append((const char*)&t_p, sizeof(EndInfo));
+}
+
 void Packet::append(const string& str)
 {
 	append(str.c_str(), str.size());
