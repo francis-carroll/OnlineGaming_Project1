@@ -19,7 +19,7 @@ using namespace sf;
 class Server
 {
 public:
-	Server(int t_port, bool t_loopBacktoLocalHost = true);
+	Server(int t_port, bool t_loopBacktoLocalHost = false);
 	~Server();
 	static void listenForNewConnections(Server& t_server);
 	static bool listenForConnection(Server& t_server);
@@ -47,6 +47,7 @@ private:
 	bool getString(shared_ptr<Connection> t_connection, string& t_string);
 	bool getUpdateInfo(shared_ptr<Connection> t_connection, UpdateInfo& t_data);
 	bool getStateInfo(shared_ptr<Connection> t_connection, StateInfo& t_data);
+	bool getStartInfo(shared_ptr<Connection> t_connection, StartInfo& t_data);
 	bool getEndInfo(shared_ptr<Connection> t_connection, EndInfo& t_data);
 
 	vector<shared_ptr<Connection>> m_connections;

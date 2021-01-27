@@ -17,7 +17,7 @@
 
 class Player;
 class BasePlayer;
-class Game;
+class Play;
 
 using namespace std;
 
@@ -26,7 +26,7 @@ class Client
 public:
     Client(string t_ip, int t_port);
     ~Client();
-    bool connectSocket(Game* t_game);
+    bool connectSocket(Play* t_game);
     bool closeConnection();
     
     //senders
@@ -35,8 +35,8 @@ public:
 
     shared_ptr<Connection> getClientConnection();
 private:
-    bool processPacket(PacketType t_packetType, Game* t_game);
-    static void clientThread(Client& t_client, Game* t_game);
+    bool processPacket(PacketType t_packetType, Play* t_game);
+    static void clientThread(Client& t_client, Play* t_game);
     static void packetSenderThread(Client& t_client);
     void disconnectClient(shared_ptr<Connection> t_connection);
     

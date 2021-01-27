@@ -7,5 +7,6 @@ enum class PacketType
 	ChatMessage,
 	UpdateState,
 	RecieveState,
-	GameOver
+	GameOver,
+	SetupVisuals
 };

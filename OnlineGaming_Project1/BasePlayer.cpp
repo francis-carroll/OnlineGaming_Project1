@@ -1,23 +1,27 @@
 #include "BasePlayer.h"
-#include <Game.h>
+#include <Play.h>
 
 BasePlayer::BasePlayer(int t_id, string t_ip) :
-	Player(t_id, Identifier::Client)
+	Player(t_id, Identifier::Client),
+	m_ip(t_ip)
 {
 }
 
 BasePlayer::BasePlayer(int t_id, string t_ip, Identifier t_identifier) :
-	Player(t_id, t_identifier)
+	Player(t_id, t_identifier),
+	m_ip(t_ip)
 {
 }
 
 BasePlayer::BasePlayer(int t_id, string t_ip, Vector2f t_position, float t_radius) :
-	Player(t_id, t_position, t_radius, Identifier::Client)
+	Player(t_id, t_position, t_radius, Identifier::Client),
+	m_ip(t_ip)
 {
 }
 
 BasePlayer::BasePlayer(int t_id, string t_ip, Vector2f t_position, float t_radius, Identifier t_identifier)   :
-	Player(t_id, t_position, t_radius, t_identifier)
+	Player(t_id, t_position, t_radius, t_identifier),
+	m_ip(t_ip)
 {
 }
 
@@ -34,9 +38,9 @@ void BasePlayer::update(Time t_deltaTime)
 	}
 }
 
-void BasePlayer::setupClient(Game* t_game)
+void BasePlayer::setupClient(Play* t_game)
 {
-	m_client = make_shared<Client>("127.0.0.1", 1111);
+	m_client = make_shared<Client>(m_ip, 8000);
 	if (!m_client->connectSocket(t_game))
 	{
 		cout << "Failed to connect to server" << endl;

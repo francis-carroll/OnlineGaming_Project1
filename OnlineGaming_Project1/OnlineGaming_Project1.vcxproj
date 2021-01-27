@@ -145,27 +145,33 @@
   <ItemGroup>
     <ClInclude Include="AuthPlayer.h" />
     <ClInclude Include="BasePlayer.h" />
+    <ClInclude Include="Button.h" />
     <ClInclude Include="Client.h" />
     <ClInclude Include="Connection.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="GameUpdate.h" />
     <ClInclude Include="Globals.h" />
+    <ClInclude Include="Menu.h" />
     <ClInclude Include="Packet.h" />
     <ClInclude Include="PacketManager.h" />
     <ClInclude Include="PacketStructs.h" />
     <ClInclude Include="PacketType.h" />
+    <ClInclude Include="Play.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="Server.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AuthPlayer.cpp" />
     <ClCompile Include="BasePlayer.cpp" />
+    <ClCompile Include="Button.cpp" />
     <ClCompile Include="Client.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Menu.cpp" />
     <ClCompile Include="Packet.cpp" />
     <ClCompile Include="PacketManager.cpp" />
     <ClCompile Include="PacketStructs.cpp" />
+    <ClCompile Include="Play.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="Server.cpp" />
   </ItemGroup>

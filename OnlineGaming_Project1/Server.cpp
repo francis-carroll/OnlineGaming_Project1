@@ -94,7 +94,7 @@ bool Server::listenForConnection(Server& t_server)
 	{
 		std::lock_guard<shared_mutex> lock(t_server.m_connectionManagerMutex);
 		std::shared_ptr<Connection> newConnection(std::make_shared<Connection>(t_server.m_idCounter, newConnectionSocket));
-		//t_server.m_idCounter++;
+		t_server.m_idCounter++;
 
 		t_server.m_connections.push_back(newConnection);
 		t_server.m_activeConnection++;
@@ -103,6 +103,15 @@ bool Server::listenForConnection(Server& t_server)
 		std::thread CHT(t_server.clientHandlerThread, std::ref(t_server), newConnection);
 		CHT.detach();
 		t_server.m_threads.push_back(&CHT);
+
+		if (t_server.m_activeConnection != 1)
+		{
+			StateInfo updateState;
+			updateState.m_gameState = State::Waiting;
+
+			PS::StateUpdate is(updateState);
+			newConnection->pm.append(is.toPacket(PacketType::RecieveState));
+		}
 
 		return true;
 	}
@@ -124,11 +133,11 @@ void Server::initGame(int t_target)
 		{
 		case 0:
 			temp.playerType = ColorPlayer::Red;
-			temp.pos = Vector2f(100.0f, 100.0f);
+			temp.pos = Vector2f(150.0f, 100.0f);
 			break;
 		case 1:
 			temp.playerType = ColorPlayer::Yellow;
-			temp.pos = Vector2f(400.0f, 100.0f);
+			temp.pos = Vector2f(400.0f, 200.0f);
 			break;
 		case 2:
 			temp.playerType = ColorPlayer::Cyan;
@@ -175,6 +184,27 @@ bool Server::processPacket(shared_ptr<Connection> t_connection, PacketType t_pac
 
 		PS::StateUpdate um(temp);
 		std::shared_ptr<Packet> msgPacket = std::make_shared<Packet>(um.toPacket(PacketType::RecieveState)); //use shared_ptr instead of sending with SendString so we don't have to reallocate packet for each connection
+		{
+			std::shared_lock<std::shared_mutex> lock(m_connectionManagerMutex);
+			for (shared_ptr<Connection> con : m_connections) //For each connection...
+			{
+				if (con->activeConnection)
+				{
+					if (con == t_connection) //If connection is the user who sent the message...
+						continue;//Skip to the next user since there is no purpose in sending the message back to the user who sent it.
+					con->pm.append(msgPacket);
+				}
+			}
+		}
+		break;
+	}
+	case PacketType::SetupClient:
+	{
+		StartInfo temp;
+		getStartInfo(t_connection, temp);
+
+		PS::StartUpdate um(temp);
+		std::shared_ptr<Packet> msgPacket = std::make_shared<Packet>(um.toPacket(PacketType::SetupVisuals)); //use shared_ptr instead of sending with SendString so we don't have to reallocate packet for each connection
 		{
 			std::shared_lock<std::shared_mutex> lock(m_connectionManagerMutex);
 			for (shared_ptr<Connection> con : m_connections) //For each connection...
@@ -270,6 +300,8 @@ void Server::packetSenderThread(Server& t_server)
 				if (!t_server.sendAll(con, (const char*)(&p->getBuffer()[0]), p->getBuffer().size())) //send packet to connection
 				{
 					std::cout << "Failed to send packet to ID: " << con->id << std::endl; //Print out if failed to send packet
+					t_server.disconnectClient(con);
+					break;
 				}
 			}
 		}
@@ -280,7 +312,7 @@ void Server::packetSenderThread(Server& t_server)
 
 void Server::disconnectClient(std::shared_ptr<Connection> t_connection)
 {
-	lock_guard<shared_mutex> lock(m_connectionManagerMutex);
+	//lock_guard<shared_mutex> lock(m_connectionManagerMutex);
 
 	t_connection->pm.clearPackets();
 	closesocket(t_connection->socket);
@@ -386,6 +418,17 @@ bool Server::getUpdateInfo(std::shared_ptr<Connection> t_connection, UpdateInfo&
 }
 
 bool Server::getStateInfo(shared_ptr<Connection> t_connection, StateInfo& t_data)
+{
+	int32_t bufferlen;
+
+	if (!getInt32_t(t_connection, bufferlen)) return false;
+
+	if (bufferlen == 0) return 0;
+
+	return recvAll(t_connection, (char*)&t_data, bufferlen);
+}
+
+bool Server::getStartInfo(shared_ptr<Connection> t_connection, StartInfo& t_data)
 {
 	int32_t bufferlen;
 

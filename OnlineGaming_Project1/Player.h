@@ -33,6 +33,7 @@ public:
 	void setColorPlayer(ColorPlayer t_color);
 	void setColorSingle(ColorPlayer t_color);
 	void setState(State t_state);
+	void setPrevState(State t_state);
 	void setTarget(int t_target);
 
 	//getters
@@ -42,6 +43,7 @@ public:
 	Color getColor();
 	ColorPlayer getColorPlayer();
 	State getState();
+	State getPrevState();
 	int getTarget();
 private:
 	void setupPlayer();
@@ -60,6 +62,7 @@ protected:
 	int m_id;
 
 	Identifier m_identifier;
+	State m_prevGameState = State::None;
 	State m_gameState;
 	ColorPlayer m_color;
 	int m_target;

@@ -12,3 +12,10 @@ namespace GLOBALS
 		return std::sqrt(std::pow(t_position2.x - t_position1.x, 2.0f) + std::pow(t_position2.y - t_position1.y, 2.0f));
 	}
 }
+
+enum class JoinType
+{
+	None,
+	Host,
+	Join
+};

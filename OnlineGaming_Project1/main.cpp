@@ -23,26 +23,7 @@ int main()
 {
     srand((unsigned)time(nullptr));
 
-    cout << "Please enter 'host' to host or 'join' to join" << endl;
-    string state;
-    getline(cin, state);
-    cout << "Please enter the IP you would like to join/host on" << endl;
-    string ip;
-    getline(cin, ip);
-
-    shared_ptr<Game> m_game;
-    if (state == "join")
-    {
-        m_game = make_shared<Game>(JoinType::Join, ip);
-    }
-    else if (state == "host")
-    {
-        m_game = make_shared<Game>(JoinType::Host, ip);
-    }
-    else
-    {
-        return 0;
-    }
+    shared_ptr<Game> m_game = make_shared<Game>();
     m_game->run();
 
     return 0;

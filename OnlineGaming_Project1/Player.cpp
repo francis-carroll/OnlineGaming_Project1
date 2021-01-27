@@ -7,7 +7,9 @@ Player::Player(int t_id) :
 	m_radius(15.0f),
 	m_identifier(Identifier::Visual),
 	m_activePlayer(false),
-	m_velocity(Vector2f(0.0f, 0.0f))
+	m_velocity(Vector2f(0.0f, 0.0f)),
+	m_gameState(State::Waiting),
+	m_prevGameState(State::None)
 {
 	setupPlayer();
 }
@@ -19,7 +21,9 @@ Player::Player(int t_id, Identifier t_identifier) :
 	m_radius(15.0f),
 	m_identifier(t_identifier),
 	m_activePlayer(false),
-	m_velocity(Vector2f(0.0f, 0.0f))
+	m_velocity(Vector2f(0.0f, 0.0f)),
+	m_gameState(State::Waiting),
+	m_prevGameState(State::None)
 {
 	setupPlayer();
 }
@@ -31,7 +35,9 @@ Player::Player(int t_id, Vector2f t_position, float t_radius, Identifier t_ident
 	m_radius(t_radius),
 	m_identifier(t_identifier),
 	m_activePlayer(false),
-	m_velocity(Vector2f(0.0f,0.0f))
+	m_velocity(Vector2f(0.0f,0.0f)),
+	m_gameState(State::Waiting),
+	m_prevGameState(State::None)
 {
 	setupPlayer();
 }
@@ -118,6 +124,11 @@ void Player::setState(State t_state)
 	m_gameState = t_state;
 }
 
+void Player::setPrevState(State t_state)
+{
+	m_prevGameState = t_state;
+}
+
 void Player::setTarget(int t_target)
 {
 	m_target = t_target;
@@ -151,6 +162,11 @@ ColorPlayer Player::getColorPlayer()
 State Player::getState()
 {
 	return m_gameState;
+}
+
+State Player::getPrevState()
+{
+	return m_prevGameState;
 }
 
 int Player::getTarget()

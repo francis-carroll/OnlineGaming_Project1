@@ -35,7 +35,6 @@ struct UpdateInfo
 {
 	int t_id;
 	Vector2f pos;
-	ColorPlayer playerType;
 };
 
 struct StateInfo
@@ -47,6 +46,7 @@ struct EndInfo
 {
 	int target;
 	int winner;
+	float gameTime;
 };
 
 class ToString

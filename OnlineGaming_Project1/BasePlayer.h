@@ -3,7 +3,7 @@
 #include <Client.h>
 #include <Player.h>
 
-class Game;
+class Play;
 
 class BasePlayer : public Player
 {
@@ -14,11 +14,12 @@ public:
 	BasePlayer(int t_id, string t_ip, Vector2f t_position, float t_radius, Identifier t_identifier);
 	~BasePlayer();
 
-	void setupClient(Game* t_game);
+	void setupClient(Play* t_game);
 	void update(Time t_deltaTime);
 
 	shared_ptr<Client> getClient();
 protected:
 	void movement(Time t_deltaTime);
 	shared_ptr<Client> m_client;
+	string m_ip;
 };

@@ -1,5 +1,5 @@
 #include "Client.h"
-#include <Game.h>
+#include <Play.h>
 #include "Player.h"
 #include "BasePlayer.h"
 
@@ -31,7 +31,7 @@ Client::~Client()
     }
 }
 
-bool Client::connectSocket(Game* t_game)
+bool Client::connectSocket(Play* t_game)
 {
     m_connection->socket = socket(AF_INET, SOCK_STREAM, NULL);
     if (connect(m_connection->socket, (SOCKADDR*)&m_address, m_addressLenght) != 0)
@@ -65,7 +65,7 @@ bool Client::closeConnection()
     return true;
 }
 
-bool Client::processPacket(PacketType t_packetType, Game* t_game)
+bool Client::processPacket(PacketType t_packetType, Play* t_game)
 {
     switch (t_packetType)
     {
@@ -75,7 +75,6 @@ bool Client::processPacket(PacketType t_packetType, Game* t_game)
         getUpdateInfo(temp);
 
         t_game->getPlayers()->at(temp.t_id)->setPosition(temp.pos);
-        t_game->getPlayers()->at(temp.t_id)->setColor(temp.playerType);
 
         break;
     }
@@ -102,14 +101,28 @@ bool Client::processPacket(PacketType t_packetType, Game* t_game)
         t_game->getPlayers()->at(temp.t_id)->setTarget(temp.target);
         t_game->getPlayers()->at(temp.t_id)->setPosition(temp.pos);
 
-        UpdateInfo updateData;
+        StartInfo updateData;
         updateData.t_id = t_game->getPlayers()->at(temp.t_id)->getID();
         updateData.pos = t_game->getPlayers()->at(temp.t_id)->getPosition();
         updateData.playerType = t_game->getPlayers()->at(temp.t_id)->getColorPlayer();
 
-        PS::GameUpdate is(updateData);
-        m_connection->pm.append(is.toPacket(PacketType::UpdateRecv));
+        PS::StartUpdate is(updateData);
+        m_connection->pm.append(is.toPacket(PacketType::SetupClient));
         
+        break;
+    }
+    case PacketType::SetupVisuals:
+    {
+        StartInfo temp;
+        getStartInfo(temp);
+
+        t_game->getPlayers()->at(temp.t_id)->setID(temp.t_id);
+
+        t_game->getPlayers()->at(temp.t_id)->setColor(temp.playerType);
+        t_game->getPlayers()->at(temp.t_id)->setColorPlayer(temp.playerType);
+        t_game->getPlayers()->at(temp.t_id)->setTarget(temp.target);
+        t_game->getPlayers()->at(temp.t_id)->setPosition(temp.pos);
+
         break;
     }
     case PacketType::GameOver:
@@ -119,6 +132,7 @@ bool Client::processPacket(PacketType t_packetType, Game* t_game)
 
         t_game->m_target = state.target;
         t_game->m_winner = state.winner;
+        t_game->m_gameTime = state.gameTime;
 
         break;
     }
@@ -144,7 +158,7 @@ bool Client::processPacket(PacketType t_packetType, Game* t_game)
     return true;
 }
 
-void Client::clientThread(Client& t_client, Game* t_game)
+void Client::clientThread(Client& t_client, Play* t_game)
 {
     PacketType packetType;
     while (true)
@@ -172,6 +186,8 @@ void Client::packetSenderThread(Client& t_client)
             if (!t_client.sendAll((char*)(&p->getBuffer()[0]), p->getBuffer().size())) //send packet to connection
             {
                 std::cout << "Failed to send packet to ID: " << t_client.m_connection->id << std::endl; //Print out if failed to send packet
+                t_client.disconnectClient(t_client.m_connection);
+                break;
             }
         }
         Sleep(5);
