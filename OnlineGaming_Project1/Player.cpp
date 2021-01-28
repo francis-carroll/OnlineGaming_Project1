@@ -134,6 +134,11 @@ void Player::setTarget(int t_target)
 	m_target = t_target;
 }
 
+void Player::setVelocity(Vector2f t_velocity)
+{
+	m_velocity = t_velocity;
+}
+
 Vector2f Player::getPosition()
 {
 	return *m_position;

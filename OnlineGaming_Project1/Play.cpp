@@ -78,17 +78,17 @@ void Play::update(Time t_dt)
 		if (getID() == m_winner)
 		{
 			m_gameText.setString("You Won in " + to_string(m_gameTime) + " seconds.");
-			m_gameText.setPosition(Vector2f(140.0f, 200.0f));
+			m_gameText.setPosition(Vector2f(100.0f, 200.0f));
 		}
 		else if (getID() == m_target)
 		{
-			m_gameText.setString("You Got Caught, You Lasted " + to_string(m_gameTime) + " seconds.");
-			m_gameText.setPosition(Vector2f(140.0f, 200.0f));
+			m_gameText.setString("           You Got Caught, \nYou Lasted " + to_string(m_gameTime) + " seconds.");
+			m_gameText.setPosition(Vector2f(100.0f, 200.0f));
 		}
 		else if (getID() != m_target && getID() != m_winner)
 		{
 			m_gameText.setString("You Lost in " + to_string(m_gameTime) + " seconds.");
-			m_gameText.setPosition(Vector2f(140.0f, 200.0f));
+			m_gameText.setPosition(Vector2f(100.0f, 200.0f));
 		}
 	}
 
@@ -182,7 +182,7 @@ void Play::updatePlayers(Time t_dt)
 			AuthPlayer* temp = static_cast<AuthPlayer*>(player);
 			temp->update(t_dt, *m_players);
 
-			if (m_time >= 0.05f)
+			if (m_time >= 0.03f)
 			{
 				UpdateInfo updateData;
 				updateData.t_id = temp->getID();
@@ -196,7 +196,7 @@ void Play::updatePlayers(Time t_dt)
 			BasePlayer* temp = static_cast<BasePlayer*>(player);
 			temp->update(t_dt);
 
-			if (m_time >= 0.05f)
+			if (m_time >= 0.03f)
 			{
 				UpdateInfo updateData;
 				updateData.t_id = temp->getID();
@@ -210,7 +210,7 @@ void Play::updatePlayers(Time t_dt)
 			player->update(t_dt);
 		}
 	}
-	if (m_time >= 0.05f)
+	if (m_time >= 0.03f)
 	{
 		m_time = 0.0f;
 	}

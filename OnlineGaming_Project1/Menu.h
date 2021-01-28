@@ -39,5 +39,6 @@ private:
 	RectangleShape m_current;
 	bool m_animateCurrent;
 	Time m_animationTimer;
+	Text m_intro;
 };
 

@@ -35,6 +35,7 @@ public:
 	void setState(State t_state);
 	void setPrevState(State t_state);
 	void setTarget(int t_target);
+	void setVelocity(Vector2f t_velocity);
 
 	//getters
 	Vector2f getPosition();

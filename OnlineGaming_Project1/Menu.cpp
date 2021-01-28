@@ -21,6 +21,9 @@ void Menu::update(Time t_dt)
 {
 	if (m_type == JoinType::None)
 	{
+		m_intro.setString("                   Choose\n'Host' to host a new game or \n'Join' to join an existing game");
+		m_intro.setPosition(Vector2f(250.0f, 100.0f));
+		m_intro.setOrigin(Vector2f(m_intro.getGlobalBounds().width / 2.0f, m_intro.getGlobalBounds().height / 2.0f));
 		if (m_host.getButtonState() == ButtonState::Clicked)
 		{
 			m_type = JoinType::Host;
@@ -32,6 +35,9 @@ void Menu::update(Time t_dt)
 	}
 	else
 	{
+		m_intro.setString("Enter the public IP of the host\n                below to join.");
+		m_intro.setPosition(Vector2f(250.0f, 100.0f));
+		m_intro.setOrigin(Vector2f(m_intro.getGlobalBounds().width / 2.0f, m_intro.getGlobalBounds().height / 2.0f));
 		if (m_confirm.getButtonState() == ButtonState::Clicked)
 		{
 			m_game->m_play = make_shared<Play>(m_type, m_inputContents);
@@ -44,6 +50,7 @@ void Menu::update(Time t_dt)
 
 void Menu::render(RenderWindow& t_window)
 {
+	t_window.draw(m_intro);
 	if (m_type == JoinType::None)
 	{
 		m_host.render(t_window);
@@ -92,6 +99,13 @@ void Menu::setup()
 	m_current.setSize(Vector2f(7.0f, 25.0f));
 	m_current.setOrigin(Vector2f(m_current.getGlobalBounds().width / 2.0f, m_current.getGlobalBounds().height / 2.0f));
 	m_current.setPosition(m_inputText.getPosition() + Vector2f(m_current.getGlobalBounds().width + (m_inputContents.size() * 8.0f), m_current.getGlobalBounds().height / 2.0f + 5.0f));
+
+	m_intro.setFont(m_font);
+	m_intro.setString("");
+	m_intro.setCharacterSize(30.0f);
+	m_intro.setFillColor(Color::White);
+	m_intro.setPosition(Vector2f(250.0f, 100.0f));
+	m_intro.setOrigin(Vector2f(m_intro.getGlobalBounds().width / 2.0f, m_intro.getGlobalBounds().height / 2.0f));
 }
 
 void Menu::textInput(Event& t_event)
@@ -119,7 +133,7 @@ void Menu::textInput(Event& t_event)
 void Menu::animateCurrent(Time t_dt)
 {
 	m_animationTimer += t_dt;
-	if (m_animationTimer.asSeconds() >= 0.01f)
+	if (m_animationTimer.asSeconds() >= 0.001f)
 	{
 		if (m_animateCurrent)
 		{

@@ -65,6 +65,8 @@ void AuthPlayer::handleCollisions(vector<Player*>& t_players)
 					m_prevGameState = m_gameState;
 					m_gameState = State::GameOver;
 
+					sendState();
+
 					EndInfo endInfo;
 					endInfo.target = m_target;
 					endInfo.winner = player->getID();

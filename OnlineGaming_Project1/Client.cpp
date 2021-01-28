@@ -100,6 +100,7 @@ bool Client::processPacket(PacketType t_packetType, Play* t_game)
         t_game->getPlayers()->at(temp.t_id)->setColorPlayer(temp.playerType);
         t_game->getPlayers()->at(temp.t_id)->setTarget(temp.target);
         t_game->getPlayers()->at(temp.t_id)->setPosition(temp.pos);
+        t_game->getPlayers()->at(temp.t_id)->setVelocity(Vector2f(0.0f,0.0f));
 
         StartInfo updateData;
         updateData.t_id = t_game->getPlayers()->at(temp.t_id)->getID();
